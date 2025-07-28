@@ -873,6 +873,47 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
 
             currentRole = MovieRole(id: id, tag: tag, role: role, thumb: thumb)
 
+        case "UltraBlurColors":
+            let topLeft = attributeDict["topLeft"]
+            let topRight = attributeDict["topRight"]
+            let bottomLeft = attributeDict["bottomLeft"]
+            let bottomRight = attributeDict["bottomRight"]
+
+            let ultraBlurColors = UltraBlurColors(
+                bottomLeft: bottomLeft,
+                bottomRight: bottomRight,
+                topLeft: topLeft,
+                topRight: topRight
+            )
+
+            // Update the current movie with ultra blur colors
+            if var movie = currentMovie {
+                movie = MovieMetadata(
+                    id: movie.id,
+                    title: movie.title,
+                    year: movie.year,
+                    studio: movie.studio,
+                    summary: movie.summary,
+                    rating: movie.rating,
+                    audienceRating: movie.audienceRating,
+                    audienceRatingImage: movie.audienceRatingImage,
+                    contentRating: movie.contentRating,
+                    duration: movie.duration,
+                    tagline: movie.tagline,
+                    thumb: movie.thumb,
+                    art: movie.art,
+                    originallyAvailableAt: movie.originallyAvailableAt,
+                    roles: movie.roles,
+                    directors: movie.directors,
+                    writers: movie.writers,
+                    genres: movie.genres,
+                    countries: movie.countries,
+                    ratings: movie.ratings,
+                    ultraBlurColors: ultraBlurColors
+                )
+                currentMovie = movie
+            }
+
         default:
             break
         }

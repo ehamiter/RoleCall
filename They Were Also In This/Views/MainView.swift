@@ -99,8 +99,15 @@ struct MainView: View {
                 Text(movie.title ?? "Unknown Title")
                     .font(.largeTitle)
                     .fontWeight(.bold)
+                    .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                    )
 
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -108,8 +115,13 @@ struct MainView: View {
                     }
                 }) {
                     Image(systemName: isMovieInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.blue)
+                        .foregroundColor(.primary)
                         .font(.title2)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                        )
                 }
             }
             .contentShape(Rectangle())
@@ -121,9 +133,8 @@ struct MainView: View {
             .padding(.bottom, 8)
 
             // Collapsible movie info section
-            VStack(spacing: 12) {
-
-                if isMovieInfoExpanded {
+            if isMovieInfoExpanded {
+                VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 16) {
                         // Movie poster and basic info section
                         HStack(alignment: .top, spacing: 12) {
@@ -206,10 +217,10 @@ struct MainView: View {
                         }
                     }
                 }
+                .padding()
+                .background(.thickMaterial)
+                .cornerRadius(12)
             }
-            .padding()
-            .background(Color(.systemGray6).opacity(0.8))
-            .cornerRadius(12)
 
             // Cast section - always visible
             if let roles = movie.roles, !roles.isEmpty {
@@ -407,13 +418,23 @@ struct MainView: View {
     }
 
     private func castView(cast: [MovieRole]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Cast")
                 .font(.headline)
+                .foregroundColor(.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.ultraThinMaterial)
+                )
 
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(cast.prefix(15)) { role in
-                    HStack(spacing: 10) {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8)
+            ], spacing: 12) {
+                ForEach(cast.prefix(10)) { role in
+                    VStack(alignment: .leading, spacing: 8) {
                         AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
                             switch phase {
                             case .success(let image):
@@ -421,51 +442,69 @@ struct MainView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                             case .failure(_):
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray.opacity(0.6))
-                                    .font(.title2)
+                                Rectangle()
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray.opacity(0.6))
+                                            .font(.system(size: 32))
+                                    )
                             case .empty:
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray.opacity(0.6))
-                                    .font(.title2)
+                                Rectangle()
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray.opacity(0.6))
+                                            .font(.system(size: 32))
+                                    )
                             @unknown default:
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray.opacity(0.6))
-                                    .font(.title2)
+                                Rectangle()
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray.opacity(0.6))
+                                            .font(.system(size: 32))
+                                    )
                             }
                         }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        .background(Circle().fill(Color.gray.opacity(0.1)))
+                        .frame(height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(role.tag)
                                 .font(.subheadline)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
 
                             if let character = role.role {
                                 Text(character)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                    .lineLimit(1)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
                             }
                         }
-
-                        Spacer()
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemGray6).opacity(0.6))
-                    .cornerRadius(6)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.thickMaterial)
+                    )
                 }
             }
 
-            if cast.count > 15 {
-                Text("+ \(cast.count - 15) more cast members")
+            if cast.count > 10 {
+                Text("+ \(cast.count - 10) more cast members")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .padding(.top, 4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.ultraThinMaterial)
+                    )
             }
         }
     }
@@ -537,6 +576,14 @@ struct MainView: View {
                 let response = try await plexService.getMovieMetadata(ratingKey: currentSession.id)
                 await MainActor.run {
                     self.movieMetadata = response.mediaContainer.video?.first
+                    if let movie = self.movieMetadata {
+                        print("🎬 Movie loaded: \(movie.title ?? "Unknown")")
+                        if movie.ultraBlurColors != nil {
+                            print("🎨 UltraBlurColors found!")
+                        } else {
+                            print("❌ No UltraBlurColors in movie data")
+                        }
+                    }
                     self.isLoading = false
                 }
             } catch {
@@ -549,6 +596,12 @@ struct MainView: View {
     }
 
     private func createGradientBackground(colors: UltraBlurColors) -> some View {
+        print("🎨 Ultra Blur Colors received:")
+        print("  topLeft: \(colors.topLeft ?? "nil")")
+        print("  topRight: \(colors.topRight ?? "nil")")
+        print("  bottomLeft: \(colors.bottomLeft ?? "nil")")
+        print("  bottomRight: \(colors.bottomRight ?? "nil")")
+
         let topLeft = Color(hex: colors.topLeft ?? "000000")
         let topRight = Color(hex: colors.topRight ?? "000000")
         let bottomLeft = Color(hex: colors.bottomLeft ?? "000000")
@@ -556,10 +609,10 @@ struct MainView: View {
 
         return LinearGradient(
             colors: [
-                topLeft.opacity(0.3),
-                topRight.opacity(0.2),
-                bottomLeft.opacity(0.2),
-                bottomRight.opacity(0.3)
+                topLeft.opacity(0.9),
+                topRight.opacity(0.8),
+                bottomLeft.opacity(0.8),
+                bottomRight.opacity(0.9)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
