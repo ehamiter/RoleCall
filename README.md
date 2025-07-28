@@ -1,4 +1,4 @@
-# They Were Also In This - Plex Integration App
+# RoleCall - Plex Integration App
 
 An iOS SwiftUI app that connects to a Plex Media Server to interact with your media library.
 
@@ -98,7 +98,7 @@ The app fetches and displays comprehensive server information including:
 To build the project:
 
 ```bash
-xcodebuild -project "They Were Also In This.xcodeproj" -scheme "They Were Also In This" -destination 'generic/platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project "RoleCall.xcodeproj" -scheme "RoleCall" -destination 'generic/platform=iOS Simulator,name=iPhone 16' build
 ```
 
 ## Future Enhancements

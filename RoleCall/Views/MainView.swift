@@ -1,6 +1,6 @@
 //
 //  MainView.swift
-//  They Were Also In This
+//  RoleCall
 //
 //  Created by Eric on 7/28/25.
 //
@@ -93,44 +93,36 @@ struct MainView: View {
     }
 
     private func movieDetailsView(movie: MovieMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Movie title at the top with expand/collapse functionality
-            HStack {
-                Text(movie.title ?? "Unknown Title")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                    )
-
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isMovieInfoExpanded.toggle()
-                    }
-                }) {
-                    Image(systemName: isMovieInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.primary)
-                        .font(.title2)
-                        .padding(12)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                        )
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
+        VStack(alignment: .leading, spacing: 20) {
+            // Movie title - redesigned to be more compact and elegant
+            Button(action: {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     isMovieInfoExpanded.toggle()
                 }
+            }) {
+                HStack {
+                    Text(movie.title ?? "Unknown Title")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .opacity(0.6)
+                        .rotationEffect(.degrees(isMovieInfoExpanded ? 180 : 0))
+                        .animation(.easeInOut(duration: 0.3), value: isMovieInfoExpanded)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.regularMaterial)
+                )
             }
-            .padding(.bottom, 8)
+            .buttonStyle(PlainButtonStyle())
 
             // Collapsible movie info section
             if isMovieInfoExpanded {
@@ -222,7 +214,7 @@ struct MainView: View {
                 .cornerRadius(12)
             }
 
-            // Cast section - always visible
+            // Cast section - always visible with refined spacing
             if let roles = movie.roles, !roles.isEmpty {
                 castView(cast: roles)
             }
@@ -419,21 +411,11 @@ struct MainView: View {
 
     private func castView(cast: [MovieRole]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Cast")
-                .font(.headline)
-                .foregroundColor(.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.ultraThinMaterial)
-                )
-
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 8),
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 12) {
-                ForEach(cast.prefix(10)) { role in
+                ForEach(cast) { role in
                     VStack(alignment: .leading, spacing: 8) {
                         AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
                             switch phase {
@@ -495,17 +477,7 @@ struct MainView: View {
                 }
             }
 
-            if cast.count > 10 {
-                Text("+ \(cast.count - 10) more cast members")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.ultraThinMaterial)
-                    )
-            }
+
         }
     }
 
@@ -609,10 +581,10 @@ struct MainView: View {
 
         return LinearGradient(
             colors: [
-                topLeft.opacity(0.9),
-                topRight.opacity(0.8),
-                bottomLeft.opacity(0.8),
-                bottomRight.opacity(0.9)
+                topLeft.opacity(0.15),
+                topRight.opacity(0.1),
+                bottomLeft.opacity(0.1),
+                bottomRight.opacity(0.15)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

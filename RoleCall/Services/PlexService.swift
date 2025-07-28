@@ -1,6 +1,6 @@
 //
 //  PlexService.swift
-//  They Were Also In This
+//  RoleCall
 //
 //  Created by Eric on 7/28/25.
 //
@@ -73,8 +73,8 @@ class PlexService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("They Were Also In This iOS App", forHTTPHeaderField: "X-Plex-Client-Identifier")
-        request.setValue("They Were Also In This", forHTTPHeaderField: "X-Plex-Product")
+        request.setValue("RoleCall iOS App", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.setValue("RoleCall", forHTTPHeaderField: "X-Plex-Product")
         request.setValue("1.0", forHTTPHeaderField: "X-Plex-Version")
         request.setValue("iOS", forHTTPHeaderField: "X-Plex-Platform")
         request.setValue("18.5", forHTTPHeaderField: "X-Plex-Platform-Version")

@@ -1,13 +1,13 @@
 //
-//  They_Were_Also_In_ThisUITestsLaunchTests.swift
-//  They Were Also In ThisUITests
+//  RoleCallUITestsLaunchTests.swift
+//  RoleCallUITests
 //
 //  Created by Eric on 7/28/25.
 //
 
 import XCTest
 
-final class They_Were_Also_In_ThisUITestsLaunchTests: XCTestCase {
+final class RoleCallUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

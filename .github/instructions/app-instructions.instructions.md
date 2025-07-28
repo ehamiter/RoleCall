@@ -4,7 +4,7 @@ applyTo: '**'
 Provide project context and coding guidelines that AI should follow when generating code, answering questions, or reviewing changes.
 
 1. **Project Context**:
-   - The project is a SwiftUI application named "They Were Also In This".
+   - The project is a SwiftUI application named "RoleCall".
    - The app aims to provide information about movies and their cast members.
 
 2. **Coding Guidelines**:
