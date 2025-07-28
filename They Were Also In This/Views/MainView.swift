@@ -344,7 +344,7 @@ struct MainView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 // Ratings section - more compact
                 if let ratings = movie.ratings, !ratings.isEmpty {
                     ratingsView(ratings: ratings)
@@ -595,7 +595,7 @@ struct MainView: View {
                     .cornerRadius(6)
                 }
             }
-            
+
             if cast.count > 15 {
                 Text("+ \(cast.count - 15) more cast members")
                     .font(.caption)
@@ -661,13 +661,13 @@ struct MainView: View {
             }
         }
     }
-    
+
     private func createGradientBackground(colors: UltraBlurColors) -> some View {
         let topLeft = Color(hex: colors.topLeft ?? "000000")
         let topRight = Color(hex: colors.topRight ?? "000000")
         let bottomLeft = Color(hex: colors.bottomLeft ?? "000000")
         let bottomRight = Color(hex: colors.bottomRight ?? "000000")
-        
+
         return LinearGradient(
             colors: [
                 topLeft.opacity(0.3),
