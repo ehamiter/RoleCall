@@ -13,7 +13,7 @@ struct MainView: View {
     @State private var movieMetadata: MovieMetadata?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var isSessionInfoExpanded = false
+    @State private var isMovieInfoExpanded = false
 
     var body: some View {
         ZStack {
@@ -66,9 +66,6 @@ struct MainView: View {
         let videoSessions = plexService.activeVideoSessions
         if !videoSessions.isEmpty {
             VStack(spacing: 20) {
-                // Collapsible session info at the top
-                collapsibleSessionInfo(sessions: videoSessions)
-
                 // Movie details
                 if let movie = movieMetadata {
                     movieDetailsView(movie: movie)
@@ -95,300 +92,131 @@ struct MainView: View {
         }
     }
 
-    private func collapsibleSessionInfo(sessions: [VideoSession]) -> some View {
-        VStack(spacing: 12) {
-            // Header with expand/collapse button
-            HStack {
-                Text("Current Session")
-                    .font(.headline)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isSessionInfoExpanded.toggle()
-                    }
-                }) {
-                    Image(systemName: isSessionInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.blue)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isSessionInfoExpanded.toggle()
-                }
-            }
-
-            if isSessionInfoExpanded {
-                VStack(spacing: 12) {
-                    // Session selection (if multiple sessions)
-                    if sessions.count > 1 {
-                        Picker("Select Session", selection: $selectedSessionIndex) {
-                            ForEach(0..<sessions.count, id: \.self) { index in
-                                let session = sessions[index]
-                                Text("\(session.title ?? "Unknown Title") - \(session.user?.title ?? "Unknown User")")
-                                    .tag(index)
-                            }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .onChange(of: selectedSessionIndex) { _, _ in
-                            loadMovieMetadata()
-                        }
-                    }
-
-                    // Current session details
-                    if selectedSessionIndex < sessions.count {
-                        let currentSession = sessions[selectedSessionIndex]
-                        sessionDetailsView(session: currentSession)
-                    }
-                }
-            } else {
-                // Compact view when collapsed
-                if selectedSessionIndex < sessions.count {
-                    let currentSession = sessions[selectedSessionIndex]
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(currentSession.title ?? "Unknown")
-                                .fontWeight(.medium)
-                            Text("\(currentSession.user?.title ?? "Unknown") • \(currentSession.player?.state?.capitalized ?? "Unknown")")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        if let duration = currentSession.duration,
-                           let viewOffset = currentSession.viewOffset,
-                           duration > 0 {
-                            let progress = Double(viewOffset) / Double(duration)
-                            CircularProgressView(progress: progress)
-                                .frame(width: 24, height: 24)
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6).opacity(0.8))
-        .cornerRadius(12)
-    }
-
-    private func sessionDetailsView(session: VideoSession) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Title:")
-                    .fontWeight(.medium)
-                Text(session.title ?? "Unknown")
-                    .foregroundColor(.secondary)
-            }
-
-            if let year = session.year {
-                HStack {
-                    Text("Year:")
-                        .fontWeight(.medium)
-                    Text("\(year)")
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            if let user = session.user {
-                HStack {
-                    Text("User:")
-                        .fontWeight(.medium)
-                    Text(user.title)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            if let player = session.player {
-                HStack {
-                    Text("Device:")
-                        .fontWeight(.medium)
-                    Text("\(player.product ?? "Unknown") (\(player.platform ?? "Unknown"))")
-                        .foregroundColor(.secondary)
-                }
-
-                if let state = player.state {
-                    HStack {
-                        Text("State:")
-                            .fontWeight(.medium)
-                        Text(state.capitalized)
-                            .foregroundColor(state == "playing" ? .green : .orange)
-                    }
-                }
-            }
-
-            // Progress bar
-            if let duration = session.duration, let viewOffset = session.viewOffset, duration > 0 {
-                let progress = Double(viewOffset) / Double(duration)
-                let remainingTime = duration - viewOffset
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        Text("Progress:")
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text("\(formatTime(viewOffset)) / \(formatTime(duration))")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-
-                    ProgressView(value: progress)
-                        .progressViewStyle(LinearProgressViewStyle())
-
-                    Text("Time remaining: \(formatTime(remainingTime))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // Transcode information
-            if let transcodeSession = session.transcodeSession {
-                transcodeInfoView(transcodeSession: transcodeSession)
-            }
-        }
-    }
-
-    private func transcodeInfoView(transcodeSession: TranscodeSession) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Transcoding Information")
-                .font(.subheadline)
-                .fontWeight(.medium)
-
-            if let videoDecision = transcodeSession.videoDecision {
-                HStack {
-                    Text("Video:")
-                        .fontWeight(.medium)
-                    Text(videoDecision.capitalized)
-                        .foregroundColor(videoDecision == "directplay" ? .green : .orange)
-                }
-            }
-
-            if let audioDecision = transcodeSession.audioDecision {
-                HStack {
-                    Text("Audio:")
-                        .fontWeight(.medium)
-                    Text(audioDecision.capitalized)
-                        .foregroundColor(audioDecision == "directplay" ? .green : .orange)
-                }
-            }
-
-            if let container = transcodeSession.container {
-                HStack {
-                    Text("Container:")
-                        .fontWeight(.medium)
-                    Text(container.uppercased())
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            if let progress = transcodeSession.progress, let speed = transcodeSession.speed {
-                HStack {
-                    Text("Transcode Progress:")
-                        .fontWeight(.medium)
-                    Text("\(String(format: "%.0f", progress))% at \(String(format: "%.1f", speed))x speed")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBlue).opacity(0.1))
-        .cornerRadius(8)
-    }
-
     private func movieDetailsView(movie: MovieMetadata) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Movie poster and title section - optimized for portrait
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 12) {
-                    // Smaller movie poster for portrait mode
-                    AsyncImage(url: posterURL(for: movie.thumb)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(2/3, contentMode: .fit)
-                    } placeholder: {
-                        Rectangle()
-                            .foregroundColor(.gray.opacity(0.3))
-                            .aspectRatio(2/3, contentMode: .fit)
-                    }
-                    .frame(width: 80)
-                    .cornerRadius(6)
+            // Movie title at the top
+            Text(movie.title ?? "Unknown Title")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 8)
 
-                    // Title and basic info
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(movie.title ?? "Unknown Title")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-
-                        HStack(spacing: 8) {
-                            if let year = movie.year {
-                                Text(String(year))
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if let contentRating = movie.contentRating {
-                                Text(contentRating)
-                                    .font(.caption)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.gray.opacity(0.2))
-                                    .cornerRadius(3)
-                            }
-                        }
-
-                        if let duration = movie.duration {
-                            Text(formatTime(duration))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                // Ratings section - more compact
-                if let ratings = movie.ratings, !ratings.isEmpty {
-                    ratingsView(ratings: ratings)
-                }
-            }
-
-            // Summary
-            if let summary = movie.summary {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Summary")
-                        .font(.headline)
-                    Text(summary)
-                        .font(.body)
-                        .lineLimit(nil)
-                }
-                .padding(12)
-                .background(Color(.systemGray6).opacity(0.8))
-                .cornerRadius(8)
-            }
-
-            // Genres
-            if let genres = movie.genres, !genres.isEmpty {
-                genrePillsView(genres: genres)
-            }
-
-            // Countries
-            if let countries = movie.countries, !countries.isEmpty {
-                countriesView(countries: countries)
-            }
-
-            // Directors
-            if let directors = movie.directors, !directors.isEmpty {
-                directorsView(directors: directors)
-            }
-
-            // Writers
-            if let writers = movie.writers, !writers.isEmpty {
-                writersView(writers: writers)
-            }
-
-            // Cast
+            // Cast section - always visible
             if let roles = movie.roles, !roles.isEmpty {
                 castView(cast: roles)
             }
+
+            // Collapsible movie info section
+            VStack(spacing: 12) {
+                // Header with expand/collapse button
+                HStack {
+                    Text("Movie Details")
+                        .font(.headline)
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isMovieInfoExpanded.toggle()
+                        }
+                    }) {
+                        Image(systemName: isMovieInfoExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isMovieInfoExpanded.toggle()
+                    }
+                }
+
+                if isMovieInfoExpanded {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Movie poster and basic info section
+                        HStack(alignment: .top, spacing: 12) {
+                            // Movie poster
+                            AsyncImage(url: posterURL(for: movie.thumb)) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(2/3, contentMode: .fit)
+                            } placeholder: {
+                                Rectangle()
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .aspectRatio(2/3, contentMode: .fit)
+                            }
+                            .frame(width: 80)
+                            .cornerRadius(6)
+
+                            // Basic info
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 8) {
+                                    if let year = movie.year {
+                                        Text(String(year))
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    if let contentRating = movie.contentRating {
+                                        Text(contentRating)
+                                            .font(.caption)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.gray.opacity(0.2))
+                                            .cornerRadius(3)
+                                    }
+                                }
+
+                                if let duration = movie.duration {
+                                    Text(formatTime(duration))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                // Ratings section
+                                if let ratings = movie.ratings, !ratings.isEmpty {
+                                    ratingsView(ratings: ratings)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        // Summary
+                        if let summary = movie.summary {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Summary")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text(summary)
+                                    .font(.body)
+                                    .lineLimit(nil)
+                            }
+                        }
+
+                        // Genres
+                        if let genres = movie.genres, !genres.isEmpty {
+                            genrePillsView(genres: genres)
+                        }
+
+                        // Countries
+                        if let countries = movie.countries, !countries.isEmpty {
+                            countriesView(countries: countries)
+                        }
+
+                        // Directors
+                        if let directors = movie.directors, !directors.isEmpty {
+                            directorsView(directors: directors)
+                        }
+
+                        // Writers
+                        if let writers = movie.writers, !writers.isEmpty {
+                            writersView(writers: writers)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6).opacity(0.8))
+            .cornerRadius(12)
         }
     }
 
@@ -706,23 +534,6 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
-    }
-}
-
-// Custom circular progress view for the collapsed session info
-struct CircularProgressView: View {
-    let progress: Double
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
     }
 }
 
