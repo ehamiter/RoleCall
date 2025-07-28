@@ -14,6 +14,8 @@ struct MainView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var isMovieInfoExpanded = false
+    @State private var showingActorDetail = false
+    @State private var selectedActorName = ""
 
     var body: some View {
         ZStack {
@@ -416,68 +418,75 @@ struct MainView: View {
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 12) {
                 ForEach(cast) { role in
-                    VStack(alignment: .leading, spacing: 8) {
-                        AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure(_):
-                                Rectangle()
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .overlay(
-                                        Image(systemName: "person.fill")
-                                            .foregroundColor(.gray.opacity(0.6))
-                                            .font(.system(size: 32))
-                                    )
-                            case .empty:
-                                Rectangle()
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .overlay(
-                                        Image(systemName: "person.fill")
-                                            .foregroundColor(.gray.opacity(0.6))
-                                            .font(.system(size: 32))
-                                    )
-                            @unknown default:
-                                Rectangle()
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .overlay(
-                                        Image(systemName: "person.fill")
-                                            .foregroundColor(.gray.opacity(0.6))
-                                            .font(.system(size: 32))
-                                    )
+                    Button(action: {
+                        selectedActorName = role.tag
+                        showingActorDetail = true
+                    }) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                case .failure(_):
+                                    Rectangle()
+                                        .foregroundColor(.gray.opacity(0.3))
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .foregroundColor(.gray.opacity(0.6))
+                                                .font(.system(size: 32))
+                                        )
+                                case .empty:
+                                    Rectangle()
+                                        .foregroundColor(.gray.opacity(0.3))
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .foregroundColor(.gray.opacity(0.6))
+                                                .font(.system(size: 32))
+                                        )
+                                @unknown default:
+                                    Rectangle()
+                                        .foregroundColor(.gray.opacity(0.3))
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .foregroundColor(.gray.opacity(0.6))
+                                                .font(.system(size: 32))
+                                        )
+                                }
                             }
-                        }
-                        .frame(height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .frame(height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(role.tag)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-
-                            if let character = role.role {
-                                Text(character)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(role.tag)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.leading)
+
+                                if let character = role.role {
+                                    Text(character)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                }
                             }
                         }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.thickMaterial)
+                        )
                     }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.thickMaterial)
-                    )
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
-
-
+        }
+        .sheet(isPresented: $showingActorDetail) {
+            ActorDetailView(actorName: selectedActorName)
         }
     }
 
@@ -581,10 +590,10 @@ struct MainView: View {
 
         return LinearGradient(
             colors: [
-                topLeft.opacity(0.15),
-                topRight.opacity(0.1),
-                bottomLeft.opacity(0.1),
-                bottomRight.opacity(0.15)
+                topLeft.opacity(0.35),
+                topRight.opacity(0.21),
+                bottomLeft.opacity(0.21),
+                bottomRight.opacity(0.35)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

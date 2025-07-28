@@ -402,3 +402,106 @@ struct PlexErrorResponse: Codable {
         let status: Int
     }
 }
+
+// MARK: - TMDB Models
+
+// TMDB Person Search Response
+struct TMDBPersonSearchResponse: Codable {
+    let page: Int
+    let results: [TMDBPersonSearchResult]
+    let totalPages: Int
+    let totalResults: Int
+    
+    private enum CodingKeys: String, CodingKey {
+        case page, results
+        case totalPages = "total_pages"
+        case totalResults = "total_results"
+    }
+}
+
+struct TMDBPersonSearchResult: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let profilePath: String?
+    let knownForDepartment: String?
+    let popularity: Double
+    let knownFor: [TMDBKnownForMovie]?
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, name, popularity
+        case profilePath = "profile_path"
+        case knownForDepartment = "known_for_department"
+        case knownFor = "known_for"
+    }
+}
+
+struct TMDBKnownForMovie: Codable, Identifiable {
+    let id: Int
+    let title: String?
+    let name: String? // For TV shows
+    let releaseDate: String?
+    let firstAirDate: String? // For TV shows
+    let posterPath: String?
+    let mediaType: String
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, title, name
+        case releaseDate = "release_date"
+        case firstAirDate = "first_air_date"
+        case posterPath = "poster_path"
+        case mediaType = "media_type"
+    }
+    
+    var displayTitle: String {
+        return title ?? name ?? "Unknown Title"
+    }
+    
+    var displayDate: String? {
+        return releaseDate ?? firstAirDate
+    }
+}
+
+// TMDB Person Details Response
+struct TMDBPersonDetails: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let biography: String?
+    let birthday: String?
+    let deathday: String?
+    let placeOfBirth: String?
+    let profilePath: String?
+    let knownForDepartment: String?
+    let popularity: Double
+    let homepage: String?
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, name, biography, birthday, deathday, popularity, homepage
+        case placeOfBirth = "place_of_birth"
+        case profilePath = "profile_path"
+        case knownForDepartment = "known_for_department"
+    }
+}
+
+// TMDB Person Movie Credits Response
+struct TMDBPersonMovieCredits: Codable {
+    let cast: [TMDBMovieCredit]
+    let crew: [TMDBMovieCredit]
+}
+
+struct TMDBMovieCredit: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let character: String?
+    let job: String?
+    let releaseDate: String?
+    let posterPath: String?
+    let voteAverage: Double
+    let popularity: Double
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, title, character, job, popularity
+        case releaseDate = "release_date"
+        case posterPath = "poster_path"
+        case voteAverage = "vote_average"
+    }
+}

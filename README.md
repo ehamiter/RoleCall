@@ -1,6 +1,6 @@
 # RoleCall - Plex Integration App
 
-An iOS SwiftUI app that connects to a Plex Media Server to interact with your media library.
+An iOS SwiftUI app that connects to a Plex Media Server to interact with your media library and provides detailed cast information using TMDB integration.
 
 ## Features
 
@@ -11,6 +11,49 @@ An iOS SwiftUI app that connects to a Plex Media Server to interact with your me
 - **Token Management**: Automatically stores and manages X-Plex-Token for API access
 - **Token Validation**: Checks token validity on app launch and refreshes as needed
 - **Server Capabilities**: View detailed information about your Plex server's capabilities and features
+- **Active Sessions**: View current video sessions on your Plex server
+- **Movie Details**: Rich movie information including poster, summary, cast, and crew
+- **Cast Member Details**: Tap any cast member to view detailed actor information from TMDB
+- **Actor Profiles**: See actor biographies, photos, and filmographies
+
+### 🎬 TMDB Integration
+
+The app integrates with The Movie Database (TMDB) to provide enhanced cast and crew information:
+
+- **Actor Search**: Automatically searches TMDB for cast members
+- **Detailed Profiles**: Biography, birthplace, known for department
+- **High-Quality Photos**: Professional actor headshots and photos
+- **Filmography**: Complete list of movies and TV shows the actor has appeared in
+- **Ratings**: Movie ratings and popularity scores
+
+### 🔧 Configuration Setup
+
+Before running the app, you need to configure API keys:
+
+1. **Copy Configuration Template**:
+   ```bash
+   cp Config.template.plist RoleCall/Config.plist
+   ```
+
+2. **Get TMDB API Keys**:
+   - Visit [TMDB API](https://www.themoviedb.org/settings/api)
+   - Sign up for a free account
+   - Request API access
+   - Copy your API Key and Read Access Token
+
+3. **Update Config.plist**:
+   ```xml
+   <key>TMDB_API_KEY</key>
+   <string>your_tmdb_api_key_here</string>
+   <key>TMDB_ACCESS_TOKEN</key>
+   <string>your_tmdb_access_token_here</string>
+   ```
+
+4. **Plex Server Setup**:
+   - Enter your Plex Media Server IP address in app settings
+   - Login with your Plex credentials
+
+⚠️ **Important**: Never commit your actual `Config.plist` file with real API keys to version control. The file is already included in `.gitignore`.
 
 ### 🔧 Settings
 
@@ -37,11 +80,42 @@ The app fetches and displays comprehensive server information including:
 
 ## API Endpoints Used
 
-### Authentication
+### Plex Authentication
 - `POST https://plex.tv/users/sign_in.json` - User login and token exchange
 
-### Server Capabilities
+### Plex Server API
 - `GET http://{ip_address}:32400/?X-Plex-Token={plex_token}` - Server capabilities and information
+- `GET http://{ip_address}:32400/status/sessions?X-Plex-Token={plex_token}` - Active playback sessions
+- `GET http://{ip_address}:32400/library/metadata/{id}?X-Plex-Token={plex_token}` - Movie metadata and cast information
+
+### TMDB API
+- `GET https://api.themoviedb.org/3/search/person` - Search for actors by name
+- `GET https://api.themoviedb.org/3/person/{id}` - Get detailed actor information
+- `GET https://api.themoviedb.org/3/person/{id}/movie_credits` - Get actor's filmography
+
+## Configuration Security
+
+### iOS/Swift API Key Management
+
+Unlike server-side applications that can use environment variables, iOS apps require a different approach for managing API keys:
+
+1. **Configuration Files**: We use `Config.plist` files to store API keys
+2. **Version Control Exclusion**: The actual config file is gitignored
+3. **Template System**: A template file shows the required structure
+4. **Build-time Integration**: Keys are bundled with the app during build
+
+This approach is suitable for public APIs like TMDB where the keys will be included in the distributed app. For more sensitive keys, consider:
+- Server-side proxy endpoints
+- Key obfuscation techniques
+- Runtime key fetching from secure servers
+
+### Why Not Environment Variables?
+
+Environment variables work great for server applications (Python, Node.js, etc.) but don't translate directly to iOS apps because:
+- iOS apps run in sandboxed environments
+- No shell environment during runtime
+- Configuration must be bundled at build time
+- Apps are distributed as static binaries
 
 ## Technical Details
 
@@ -95,11 +169,29 @@ The app fetches and displays comprehensive server information including:
 
 ## Building
 
-To build the project:
+### Prerequisites
 
-```bash
-xcodebuild -project "RoleCall.xcodeproj" -scheme "RoleCall" -destination 'generic/platform=iOS Simulator,name=iPhone 16' build
-```
+1. **Create Configuration File**:
+   ```bash
+   cp Config.template.plist RoleCall/Config.plist
+   ```
+
+2. **Add Your API Keys** to `RoleCall/Config.plist`:
+   - Get TMDB API keys from [themoviedb.org](https://www.themoviedb.org/settings/api)
+   - Replace placeholder values with your actual keys
+
+3. **Build the Project**:
+   ```bash
+   # For Simulator
+   xcodebuild -project "RoleCall.xcodeproj" -scheme "RoleCall" -destination 'generic/platform=iOS Simulator,name=iPhone 16' build
+   
+   # For Device
+   xcodebuild -project "RoleCall.xcodeproj" -scheme "RoleCall" -destination 'generic/platform=iOS' build
+   ```
+
+   Or simply open `RoleCall.xcodeproj` in Xcode and build normally.
+
+⚠️ **Note**: The app will not build or function properly without a valid `Config.plist` file containing TMDB API keys.
 
 ## Future Enhancements
 
