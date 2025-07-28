@@ -15,7 +15,7 @@ struct ContentView: View {
         NavigationView {
             Group {
                 if plexService.isLoggedIn {
-                    // Main app content when logged in
+                    // Main app content when logged in - Now Playing focused
                     MainView(plexService: plexService)
                 } else {
                     // Login view when not authenticated

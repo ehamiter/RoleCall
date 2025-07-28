@@ -62,6 +62,20 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+
+                    Section(header: Text("Server Information")) {
+                        NavigationLink(destination: ServerCapabilitiesView(plexService: plexService)) {
+                            Label("Server Capabilities", systemImage: "server.rack")
+                        }
+
+                        NavigationLink(destination: ActivitiesView(plexService: plexService)) {
+                            Label("Server Activities", systemImage: "gearshape.2")
+                        }
+
+                        NavigationLink(destination: SessionsView(plexService: plexService)) {
+                            Label("Active Sessions", systemImage: "play.circle")
+                        }
+                    }
                 }
             }
             .navigationTitle("Settings")

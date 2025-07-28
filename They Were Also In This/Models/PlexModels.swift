@@ -253,6 +253,145 @@ struct TranscodeSession: Codable {
     let audioCodec: String?
 }
 
+// MARK: - Plex Movie Metadata Response
+struct PlexMovieMetadataResponse: Codable {
+    let mediaContainer: MovieMetadataContainer
+
+    private enum CodingKeys: String, CodingKey {
+        case mediaContainer = "MediaContainer"
+    }
+
+    struct MovieMetadataContainer: Codable {
+        let size: Int
+        let video: [MovieMetadata]?
+
+        private enum CodingKeys: String, CodingKey {
+            case size
+            case video = "Video"
+        }
+    }
+}
+
+// MARK: - Movie Metadata
+struct MovieMetadata: Codable, Identifiable {
+    let id: String
+    let title: String?
+    let year: Int?
+    let studio: String?
+    let summary: String?
+    let rating: Double?
+    let audienceRating: Double?
+    let audienceRatingImage: String?
+    let contentRating: String?
+    let duration: Int?
+    let tagline: String?
+    let thumb: String?
+    let art: String?
+    let originallyAvailableAt: String?
+
+    // Cast and Crew
+    let roles: [MovieRole]?
+    let directors: [MovieDirector]?
+    let writers: [MovieWriter]?
+    let genres: [MovieGenre]?
+    let countries: [MovieCountry]?
+    let ratings: [MovieRating]?
+    let ultraBlurColors: UltraBlurColors?
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "ratingKey"
+        case title, year, studio, summary, rating, audienceRating, audienceRatingImage, contentRating, duration, tagline, thumb, art, originallyAvailableAt
+        case roles = "Role"
+        case directors = "Director"
+        case writers = "Writer"
+        case genres = "Genre"
+        case countries = "Country"
+        case ratings = "Rating"
+        case ultraBlurColors = "UltraBlurColors"
+    }
+}
+
+// MARK: - Movie Role (Cast)
+struct MovieRole: Codable, Identifiable {
+    let id: String
+    let tag: String // Actor name
+    let role: String? // Character name
+    let thumb: String? // Actor photo
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tag, role, thumb
+    }
+}
+
+// MARK: - Movie Director
+struct MovieDirector: Codable, Identifiable {
+    let id: String
+    let tag: String // Director name
+    let thumb: String? // Director photo
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tag, thumb
+    }
+}
+
+// MARK: - Movie Writer
+struct MovieWriter: Codable, Identifiable {
+    let id: String
+    let tag: String // Writer name
+    let thumb: String? // Writer photo
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tag, thumb
+    }
+}
+
+// MARK: - Movie Genre
+struct MovieGenre: Codable, Identifiable {
+    let id: String
+    let tag: String // Genre name
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tag
+    }
+}
+
+// MARK: - Movie Country
+struct MovieCountry: Codable, Identifiable {
+    let id: String
+    let tag: String // Country name
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tag
+    }
+}
+
+// MARK: - Movie Rating
+struct MovieRating: Codable, Identifiable {
+    let id: String?
+    let image: String?
+    let type: String?
+    let value: Double?
+    let count: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case image, type, value, count
+    }
+}
+
+// MARK: - Ultra Blur Colors
+struct UltraBlurColors: Codable {
+    let bottomLeft: String?
+    let bottomRight: String?
+    let topLeft: String?
+    let topRight: String?
+}
+
 // MARK: - Plex Error Response
 struct PlexErrorResponse: Codable {
     let errors: [PlexError]

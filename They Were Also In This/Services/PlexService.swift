@@ -17,6 +17,7 @@ class PlexService: ObservableObject {
     @Published var serverCapabilities: PlexCapabilitiesResponse?
     @Published var activities: PlexActivitiesResponse?
     @Published var sessions: PlexSessionsResponse?
+    @Published var movieMetadata: PlexMovieMetadataResponse?
 
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "PlexSettings"
@@ -169,6 +170,7 @@ class PlexService: ObservableObject {
         serverCapabilities = nil
         activities = nil
         sessions = nil
+        movieMetadata = nil
     }
 
     // MARK: - Server Capabilities
@@ -390,6 +392,93 @@ class PlexService: ObservableObject {
         isLoading = false
     }
 
+    // MARK: - Movie Metadata
+    func getMovieMetadata(ratingKey: String) async throws -> PlexMovieMetadataResponse {
+        guard !settings.serverIP.isEmpty, !settings.plexToken.isEmpty else {
+            throw PlexError.notAuthenticated
+        }
+
+        let urlString = "http://\(settings.serverIP):32400/library/metadata/\(ratingKey)?X-Plex-Token=\(settings.plexToken)"
+        guard let url = URL(string: urlString) else {
+            print("❌ Invalid URL: \(urlString)")
+            throw PlexError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/xml", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 10.0 // 10 second timeout
+
+        print("🎬 Fetching movie metadata...")
+        print("📍 URL: \(urlString)")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ Invalid response type")
+                throw PlexError.invalidResponse
+            }
+
+            print("📊 Movie metadata response status: \(httpResponse.statusCode)")
+
+            if httpResponse.statusCode == 401 {
+                print("❌ Server returned 401 - Token invalid or expired")
+                throw PlexError.invalidToken
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                print("❌ Server error: \(httpResponse.statusCode)")
+                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                throw PlexError.serverError(httpResponse.statusCode)
+            }
+
+            print("✅ Movie metadata received successfully")
+            print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+            let metadataResponse = try parseMovieMetadataXML(data: data)
+            await MainActor.run {
+                self.movieMetadata = metadataResponse
+            }
+            return metadataResponse
+
+        } catch let error as PlexError {
+            throw error
+        } catch let decodingError as DecodingError {
+            print("❌ JSON Decoding error: \(decodingError)")
+            throw PlexError.invalidResponse
+        } catch {
+            print("❌ Network error: \(error)")
+            throw PlexError.invalidResponse
+        }
+    }
+
+    func fetchMovieMetadata(ratingKey: String) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            _ = try await getMovieMetadata(ratingKey: ratingKey)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    // MARK: - Helper Methods
+    var hasActiveSessions: Bool {
+        guard let sessions = sessions else { return false }
+        return sessions.mediaContainer.size > 0
+    }
+
+    var activeVideoSessions: [VideoSession] {
+        return sessions?.mediaContainer.video ?? []
+    }
+
+    var activeTrackSessions: [TrackSession] {
+        return sessions?.mediaContainer.track ?? []
+    }
+
     // MARK: - XML Parsing
     private func parseActivitiesXML(data: Data) throws -> PlexActivitiesResponse {
         guard let xmlString = String(data: data, encoding: .utf8) else {
@@ -408,6 +497,31 @@ class PlexService: ObservableObject {
                 return response
             } else {
                 print("❌ No activities response parsed")
+                throw PlexError.invalidResponse
+            }
+        } else {
+            print("❌ XML parsing failed")
+            throw PlexError.invalidResponse
+        }
+    }
+
+    private func parseMovieMetadataXML(data: Data) throws -> PlexMovieMetadataResponse {
+        guard let xmlString = String(data: data, encoding: .utf8) else {
+            print("❌ Unable to convert data to string")
+            throw PlexError.invalidResponse
+        }
+
+        print("🔍 Parsing Movie Metadata XML: \(xmlString)")
+
+        let parser = XMLParser(data: data)
+        let delegate = MovieMetadataXMLParserDelegate()
+        parser.delegate = delegate
+
+        if parser.parse() {
+            if let response = delegate.movieMetadataResponse {
+                return response
+            } else {
+                print("❌ No movie metadata response parsed")
                 throw PlexError.invalidResponse
             }
         } else {
@@ -688,6 +802,126 @@ class SessionsXMLParserDelegate: NSObject, XMLParserDelegate {
                 track: trackSessions.isEmpty ? nil : trackSessions
             )
             sessionsResponse = PlexSessionsResponse(mediaContainer: container)
+
+        default:
+            break
+        }
+    }
+}
+
+class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
+    var movieMetadataResponse: PlexMovieMetadataResponse?
+    private var currentMovie: MovieMetadata?
+    private var currentRole: MovieRole?
+    private var currentElement = ""
+    private var containerSize = 0
+    private var roles: [MovieRole] = []
+    private var movies: [MovieMetadata] = []
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+        currentElement = elementName
+
+        switch elementName {
+        case "MediaContainer":
+            containerSize = Int(attributeDict["size"] ?? "0") ?? 0
+
+        case "Video":
+            let id = attributeDict["ratingKey"] ?? ""
+            let title = attributeDict["title"]
+            let year = Int(attributeDict["year"] ?? "0")
+            let studio = attributeDict["studio"]
+            let summary = attributeDict["summary"]
+            let rating = Double(attributeDict["rating"] ?? "0")
+            let audienceRating = Double(attributeDict["audienceRating"] ?? "0")
+            let contentRating = attributeDict["contentRating"]
+            let duration = Int(attributeDict["duration"] ?? "0")
+            let tagline = attributeDict["tagline"]
+            let thumb = attributeDict["thumb"]
+            let art = attributeDict["art"]
+            let originallyAvailableAt = attributeDict["originallyAvailableAt"]
+
+            currentMovie = MovieMetadata(
+                id: id,
+                title: title,
+                year: year,
+                studio: studio,
+                summary: summary,
+                rating: rating,
+                audienceRating: audienceRating,
+                audienceRatingImage: nil,
+                contentRating: contentRating,
+                duration: duration,
+                tagline: tagline,
+                thumb: thumb,
+                art: art,
+                originallyAvailableAt: originallyAvailableAt,
+                roles: [],
+                directors: [],
+                writers: [],
+                genres: [],
+                countries: [],
+                ratings: [],
+                ultraBlurColors: nil
+            )
+            roles = []
+
+        case "Role":
+            let id = attributeDict["id"] ?? ""
+            let tag = attributeDict["tag"] ?? ""
+            let role = attributeDict["role"]
+            let thumb = attributeDict["thumb"]
+
+            currentRole = MovieRole(id: id, tag: tag, role: role, thumb: thumb)
+
+        default:
+            break
+        }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        switch elementName {
+        case "Role":
+            if let role = currentRole {
+                roles.append(role)
+            }
+            currentRole = nil
+
+        case "Video":
+            if var movie = currentMovie {
+                movie = MovieMetadata(
+                    id: movie.id,
+                    title: movie.title,
+                    year: movie.year,
+                    studio: movie.studio,
+                    summary: movie.summary,
+                    rating: movie.rating,
+                    audienceRating: movie.audienceRating,
+                    audienceRatingImage: movie.audienceRatingImage,
+                    contentRating: movie.contentRating,
+                    duration: movie.duration,
+                    tagline: movie.tagline,
+                    thumb: movie.thumb,
+                    art: movie.art,
+                    originallyAvailableAt: movie.originallyAvailableAt,
+                    roles: roles,
+                    directors: movie.directors,
+                    writers: movie.writers,
+                    genres: movie.genres,
+                    countries: movie.countries,
+                    ratings: movie.ratings,
+                    ultraBlurColors: movie.ultraBlurColors
+                )
+                movies.append(movie)
+            }
+            currentMovie = nil
+            roles = []
+
+        case "MediaContainer":
+            let container = PlexMovieMetadataResponse.MovieMetadataContainer(
+                size: containerSize,
+                video: movies.isEmpty ? nil : movies
+            )
+            movieMetadataResponse = PlexMovieMetadataResponse(mediaContainer: container)
 
         default:
             break
