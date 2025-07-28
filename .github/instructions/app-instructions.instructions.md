@@ -1,0 +1,24 @@
+---
+applyTo: '**'
+---
+Provide project context and coding guidelines that AI should follow when generating code, answering questions, or reviewing changes.
+
+1. **Project Context**:
+   - The project is a SwiftUI application named "They Were Also In This".
+   - The app aims to provide information about movies and their cast members.
+
+2. **Coding Guidelines**:
+   - Follow SwiftUI best practices and design patterns.
+   - Use meaningful names for variables, functions, and types.
+   - Write clean, maintainable, and well-documented code.
+   - Ensure the app is responsive and works well on different device sizes.
+
+3. **Technical Reference**:
+    - Follow the API information in reference documents.
+    - Use the latest Swift and SwiftUI features where applicable.
+    - Ensure compatibility with the latest iOS versions supported by the project.
+
+4. **Testing and Quality Assurance**:
+    - After any significant change, build the app with a target of iPhone 16 to ensure there are no warnings or errors.
+    - Do not run in a simulator. The user will test it on a physical device.
+

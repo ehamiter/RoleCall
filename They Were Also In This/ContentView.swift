@@ -8,14 +8,33 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var plexService = PlexService()
+    @State private var showingSettings = false
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationView {
+            Group {
+                if plexService.isLoggedIn {
+                    // Main app content when logged in
+                    ServerCapabilitiesView(plexService: plexService)
+                } else {
+                    // Login view when not authenticated
+                    LoginView(plexService: plexService)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
         }
-        .padding()
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(plexService: plexService)
+        }
     }
 }
 
