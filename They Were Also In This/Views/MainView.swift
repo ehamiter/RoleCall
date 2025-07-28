@@ -94,41 +94,34 @@ struct MainView: View {
 
     private func movieDetailsView(movie: MovieMetadata) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Movie title at the top
-            Text(movie.title ?? "Unknown Title")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
+            // Movie title at the top with expand/collapse functionality
+            HStack {
+                Text(movie.title ?? "Unknown Title")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Cast section - always visible
-            if let roles = movie.roles, !roles.isEmpty {
-                castView(cast: roles)
-            }
-
-            // Collapsible movie info section
-            VStack(spacing: 12) {
-                // Header with expand/collapse button
-                HStack {
-                    Text("Movie Details")
-                        .font(.headline)
-                    Spacer()
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isMovieInfoExpanded.toggle()
-                        }
-                    }) {
-                        Image(systemName: isMovieInfoExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(.blue)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
+                Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         isMovieInfoExpanded.toggle()
                     }
+                }) {
+                    Image(systemName: isMovieInfoExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.blue)
+                        .font(.title2)
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isMovieInfoExpanded.toggle()
+                }
+            }
+            .padding(.bottom, 8)
+
+            // Collapsible movie info section
+            VStack(spacing: 12) {
 
                 if isMovieInfoExpanded {
                     VStack(alignment: .leading, spacing: 16) {
@@ -217,6 +210,11 @@ struct MainView: View {
             .padding()
             .background(Color(.systemGray6).opacity(0.8))
             .cornerRadius(12)
+
+            // Cast section - always visible
+            if let roles = movie.roles, !roles.isEmpty {
+                castView(cast: roles)
+            }
         }
     }
 
@@ -322,16 +320,29 @@ struct MainView: View {
             LazyVStack(alignment: .leading, spacing: 8) {
                 ForEach(directors) { director in
                     HStack {
-                        AsyncImage(url: thumbnailURL(for: director.thumb)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .foregroundColor(.gray.opacity(0.3))
+                        AsyncImage(url: thumbnailURL(for: director.thumb)) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure(_):
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            case .empty:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            @unknown default:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            }
                         }
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
+                        .background(Circle().fill(Color.gray.opacity(0.1)))
 
                         Text(director.tag)
                             .font(.subheadline)
@@ -356,16 +367,29 @@ struct MainView: View {
             LazyVStack(alignment: .leading, spacing: 8) {
                 ForEach(writers) { writer in
                     HStack {
-                        AsyncImage(url: thumbnailURL(for: writer.thumb)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .foregroundColor(.gray.opacity(0.3))
+                        AsyncImage(url: thumbnailURL(for: writer.thumb)) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure(_):
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            case .empty:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            @unknown default:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            }
                         }
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
+                        .background(Circle().fill(Color.gray.opacity(0.1)))
 
                         Text(writer.tag)
                             .font(.subheadline)
@@ -390,16 +414,29 @@ struct MainView: View {
             LazyVStack(alignment: .leading, spacing: 6) {
                 ForEach(cast.prefix(15)) { role in
                     HStack(spacing: 10) {
-                        AsyncImage(url: thumbnailURL(for: role.thumb)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .foregroundColor(.gray.opacity(0.3))
+                        AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure(_):
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            case .empty:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            @unknown default:
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.title2)
+                            }
                         }
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
+                        .background(Circle().fill(Color.gray.opacity(0.1)))
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(role.tag)
@@ -436,18 +473,39 @@ struct MainView: View {
     // Helper functions for URLs
     private func artURL(for artPath: String?) -> URL? {
         guard let artPath = artPath else { return nil }
+
+        // If it's already a full URL (like metadata-static.plex.tv), use it directly
+        if artPath.hasPrefix("http://") || artPath.hasPrefix("https://") {
+            return URL(string: artPath)
+        }
+
+        // Otherwise, construct local server URL with auth token
         let urlString = "http://\(plexService.settings.serverIP):32400\(artPath)?X-Plex-Token=\(plexService.settings.plexToken)"
         return URL(string: urlString)
     }
 
     private func posterURL(for thumbPath: String?) -> URL? {
         guard let thumbPath = thumbPath else { return nil }
+
+        // If it's already a full URL (like metadata-static.plex.tv), use it directly
+        if thumbPath.hasPrefix("http://") || thumbPath.hasPrefix("https://") {
+            return URL(string: thumbPath)
+        }
+
+        // Otherwise, construct local server URL with auth token
         let urlString = "http://\(plexService.settings.serverIP):32400\(thumbPath)?X-Plex-Token=\(plexService.settings.plexToken)"
         return URL(string: urlString)
     }
 
     private func thumbnailURL(for thumbPath: String?) -> URL? {
         guard let thumbPath = thumbPath else { return nil }
+
+        // If it's already a full URL (like metadata-static.plex.tv), use it directly
+        if thumbPath.hasPrefix("http://") || thumbPath.hasPrefix("https://") {
+            return URL(string: thumbPath)
+        }
+
+        // Otherwise, construct local server URL with auth token
         let urlString = "http://\(plexService.settings.serverIP):32400\(thumbPath)?X-Plex-Token=\(plexService.settings.plexToken)"
         return URL(string: urlString)
     }
