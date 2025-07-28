@@ -11,26 +11,24 @@ struct ServerCapabilitiesView: View {
     @ObservedObject var plexService: PlexService
 
     var body: some View {
-        NavigationView {
-            Group {
-                if plexService.isLoading {
-                    VStack {
-                        ProgressView("Loading server capabilities...")
-                            .padding()
-                    }
-                } else if let capabilities = plexService.serverCapabilities {
-                    capabilitiesContent(capabilities)
-                } else {
-                    noDataView
+        Group {
+            if plexService.isLoading {
+                VStack {
+                    ProgressView("Loading server capabilities...")
+                        .padding()
                 }
+            } else if let capabilities = plexService.serverCapabilities {
+                capabilitiesContent(capabilities)
+            } else {
+                noDataView
             }
-            .navigationTitle("Server Capabilities")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                if plexService.serverCapabilities == nil {
-                    Task {
-                        await plexService.fetchServerCapabilities()
-                    }
+        }
+        .navigationTitle("Server Capabilities")
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear {
+            if plexService.serverCapabilities == nil {
+                Task {
+                    await plexService.fetchServerCapabilities()
                 }
             }
         }

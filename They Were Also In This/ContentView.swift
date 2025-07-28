@@ -16,7 +16,7 @@ struct ContentView: View {
             Group {
                 if plexService.isLoggedIn {
                     // Main app content when logged in
-                    ServerCapabilitiesView(plexService: plexService)
+                    MainView(plexService: plexService)
                 } else {
                     // Login view when not authenticated
                     LoginView(plexService: plexService)
