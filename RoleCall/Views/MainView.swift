@@ -16,6 +16,17 @@ struct MainView: View {
     @State private var isMovieInfoExpanded = false
     @State private var showingActorDetail = false
     @State private var selectedActorName = ""
+    
+    // Subtitle-related state
+    @State private var subtitleService = SubtitleService()
+    @StateObject private var tmdbService = TMDBService()
+    @State private var currentSceneActors: [(String, String?)] = []
+    @State private var isLoadingSubtitles = false
+    @State private var subtitleError: String?
+    @State private var cachedSRTContent: String?
+    @State private var cachedActorLines: [ActorLine] = []
+    @State private var lastProcessedRatingKey: String?
+    @State private var subtitleSource: String? // Track which source provided the subtitles
 
     var body: some View {
         ZStack {
@@ -60,6 +71,12 @@ struct MainView: View {
             // Refresh sessions data on pull-to-refresh
             await plexService.fetchSessions()
             loadMovieMetadata()
+        }
+        .onReceive(Timer.publish(every: 10.0, on: .main, in: .common).autoconnect()) { _ in
+            // Periodically update current scene actors based on playback progress
+            if !plexService.activeVideoSessions.isEmpty && selectedSessionIndex < plexService.activeVideoSessions.count {
+                updateCurrentSceneActors()
+            }
         }
     }
 
@@ -214,6 +231,11 @@ struct MainView: View {
                 .padding()
                 .background(.thickMaterial)
                 .cornerRadius(12)
+            }
+
+            // Current Scene Actors section - new section above cast list
+            if !currentSceneActors.isEmpty {
+                currentSceneActorsView(actors: currentSceneActors)
             }
 
             // Cast section - always visible with refined spacing
@@ -419,8 +441,11 @@ struct MainView: View {
             ], spacing: 12) {
                 ForEach(cast) { role in
                     Button(action: {
+                        // Set both values in same update to avoid race condition
                         selectedActorName = role.tag
-                        showingActorDetail = true
+                        DispatchQueue.main.async {
+                            showingActorDetail = true
+                        }
                     }) {
                         VStack(alignment: .leading, spacing: 8) {
                             AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
@@ -486,8 +511,146 @@ struct MainView: View {
             }
         }
         .sheet(isPresented: $showingActorDetail) {
-            ActorDetailView(actorName: selectedActorName)
+            ActorDetailView(actorName: selectedActorName, tmdbService: tmdbService)
         }
+    }
+    
+    private func currentSceneActorsView(actors: [(String, String?)]) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Currently Speaking")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    if isLoadingSubtitles {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .padding(.leading, 8)
+                    }
+                    
+                    Spacer()
+                }
+                
+                if let source = subtitleSource {
+                    Text("Subtitles from \(source)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .opacity(0.8)
+                }
+            }
+            
+            if let error = subtitleError {
+                Text("Unable to load subtitles: \(error)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(.thickMaterial)
+                    .cornerRadius(8)
+            } else if !actors.isEmpty {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ], spacing: 12) {
+                    ForEach(Array(actors.enumerated()), id: \.offset) { index, actor in
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Try to find the actor's image from the full cast
+                            if let actorName = actor.1,
+                               let role = movieMetadata?.roles?.first(where: { $0.tag == actorName }) {
+                                
+                                AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    case .failure(_):
+                                        Rectangle()
+                                            .foregroundColor(.gray.opacity(0.3))
+                                            .overlay(
+                                                Image(systemName: "person.fill")
+                                                    .foregroundColor(.gray.opacity(0.6))
+                                                    .font(.system(size: 32))
+                                            )
+                                    case .empty:
+                                        Rectangle()
+                                            .foregroundColor(.gray.opacity(0.3))
+                                            .overlay(
+                                                Image(systemName: "person.fill")
+                                                    .foregroundColor(.gray.opacity(0.6))
+                                                    .font(.system(size: 32))
+                                            )
+                                    @unknown default:
+                                        Rectangle()
+                                            .foregroundColor(.gray.opacity(0.3))
+                                            .overlay(
+                                                Image(systemName: "person.fill")
+                                                    .foregroundColor(.gray.opacity(0.6))
+                                                    .font(.system(size: 32))
+                                            )
+                                    }
+                                }
+                                .frame(height: 120)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                
+                            } else {
+                                Rectangle()
+                                    .foregroundColor(.gray.opacity(0.3))
+                                    .frame(height: 120)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray.opacity(0.6))
+                                            .font(.system(size: 32))
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let actorName = actor.1 {
+                                    Text(actorName)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                } else {
+                                    Text("Unknown Actor")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                }
+                                
+                                Text(actor.0) // Character name
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.thinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(.orange.opacity(0.5), lineWidth: 2)
+                                )
+                        )
+                    }
+                }
+            } else if !isLoadingSubtitles {
+                Text("No dialogue found at current time")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(.thickMaterial)
+                    .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(.regularMaterial)
+        .cornerRadius(12)
     }
 
     // Helper functions for URLs
@@ -567,6 +730,10 @@ struct MainView: View {
                     }
                     self.isLoading = false
                 }
+                
+                // Load subtitles and analyze current scene
+                await loadSubtitlesAndAnalyzeScene(for: currentSession)
+                
             } catch {
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
@@ -575,8 +742,131 @@ struct MainView: View {
             }
         }
     }
-
-    private func createGradientBackground(colors: UltraBlurColors) -> some View {
+    
+        private func loadSubtitlesAndAnalyzeScene(for session: VideoSession) async {
+        guard let movie = movieMetadata,
+              let roles = movie.roles,
+              !roles.isEmpty else { return }
+        
+        await MainActor.run {
+            isLoadingSubtitles = true
+            subtitleError = nil
+        }
+        
+        do {
+            var actorLines: [ActorLine] = []
+            
+            // Check if we need to download and parse SRT (only if it's a new movie)
+            if lastProcessedRatingKey != session.id || cachedActorLines.isEmpty {
+                var srtContent: String?
+                
+                // First try to download from Plex
+                do {
+                    srtContent = try await plexService.downloadSRT(for: session.id)
+                    await MainActor.run {
+                        self.subtitleSource = "Plex Server"
+                    }
+                    print("📥 Downloaded SRT from Plex for \(session.title ?? "Unknown")")
+                } catch {
+                    print("⚠️ Plex SRT download failed: \(error.localizedDescription)")
+                    print("🔄 Trying Wyzie subtitle API as fallback...")
+                    
+                    // Fallback to Wyzie API
+                    srtContent = try await downloadSubtitlesFromWyzie(for: movie)
+                    await MainActor.run {
+                        self.subtitleSource = "Wyzie API"
+                    }
+                }
+                
+                guard let finalSRTContent = srtContent else {
+                    throw SubtitleError.emptyContent
+                }
+                
+                // Parse SRT entries
+                let srtEntries = subtitleService.parseSRT(finalSRTContent)
+                
+                // Create cast mapping
+                let castMapping = subtitleService.createCastMapping(from: roles)
+                
+                // Map characters to actors
+                actorLines = subtitleService.mapCharactersToActors(cast: castMapping, srtEntries: srtEntries)
+                
+                // Cache the results
+                await MainActor.run {
+                    self.cachedSRTContent = finalSRTContent
+                    self.cachedActorLines = actorLines
+                    self.lastProcessedRatingKey = session.id
+                }
+                
+                print("✅ Successfully parsed SRT file for \(session.title ?? "Unknown")")
+            } else {
+                // Use cached data
+                actorLines = cachedActorLines
+                print("🔄 Using cached SRT data for timestamp update")
+            }
+            
+            // Get current timestamp and find actors in scene
+            let currentTimestamp = subtitleService.convertMillisecondsToTimeInterval(session.viewOffset ?? 0)
+            let sceneActors = subtitleService.actorsInScene(at: currentTimestamp, mapped: actorLines)
+            
+            await MainActor.run {
+                self.currentSceneActors = sceneActors
+                self.isLoadingSubtitles = false
+                print("🎭 Found \(sceneActors.count) actors in current scene at \(String(format: "%.1f", currentTimestamp))s")
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.subtitleError = error.localizedDescription
+                self.isLoadingSubtitles = false
+                self.currentSceneActors = []
+                print("❌ Failed to load subtitles: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func downloadSubtitlesFromWyzie(for movie: MovieMetadata) async throws -> String {
+        guard let title = movie.title else {
+            throw SubtitleError.invalidURL
+        }
+        
+        // Search for the movie on TMDB to get the TMDB ID
+        let searchResults = try await tmdbService.searchMovie(title: title, year: movie.year)
+        
+        guard let firstResult = searchResults.results.first else {
+            throw SubtitleError.noEnglishSubtitles
+        }
+        
+        print("🎬 Found TMDB match: \(firstResult.title) (ID: \(firstResult.id))")
+        
+        // Download subtitles from Wyzie using the TMDB ID
+        return try await subtitleService.downloadWyzieSubtitles(tmdbId: firstResult.id)
+    }
+     
+     private func updateCurrentSceneActors() {
+         guard let movie = movieMetadata,
+               let roles = movie.roles,
+               !roles.isEmpty,
+               !isLoadingSubtitles,
+               selectedSessionIndex < plexService.activeVideoSessions.count else { return }
+         
+         Task {
+             // Only refresh the session data, don't re-download SRT
+             await plexService.fetchSessions()
+             
+             // Get updated session with current viewOffset
+             let updatedVideoSessions = plexService.activeVideoSessions
+             guard selectedSessionIndex < updatedVideoSessions.count else { return }
+             let updatedSession = updatedVideoSessions[selectedSessionIndex]
+             
+             // If we have cached subtitle data or no errors, update the current scene actors
+             if !cachedActorLines.isEmpty || subtitleError == nil {
+                 await loadSubtitlesAndAnalyzeScene(for: updatedSession)
+             }
+         }
+     }
+ 
+     private func createGradientBackground(colors: UltraBlurColors) -> some View {
         print("🎨 Ultra Blur Colors received:")
         print("  topLeft: \(colors.topLeft ?? "nil")")
         print("  topRight: \(colors.topRight ?? "nil")")

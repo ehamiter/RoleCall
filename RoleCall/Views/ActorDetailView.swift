@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ActorDetailView: View {
     let actorName: String
-    @StateObject private var tmdbService = TMDBService()
+    let tmdbService: TMDBService
     @Environment(\.dismiss) private var dismiss
     
     @State private var actorDetails: TMDBPersonDetails?

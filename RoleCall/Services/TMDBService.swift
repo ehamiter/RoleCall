@@ -9,21 +9,33 @@ import Foundation
 
 @MainActor
 class TMDBService: ObservableObject {
-    private let baseURL: String
-    private let accessToken: String
-    private let imageBaseURL: String
+    private var baseURL: String
+    private var accessToken: String
+    private var imageBaseURL: String
     
     init() {
+        // Initialize with fallback values
+        self.baseURL = "https://api.themoviedb.org/3"
+        self.accessToken = ""
+        self.imageBaseURL = "https://image.tmdb.org/t/p"
+        
+        // Load configuration
+        loadConfiguration()
+    }
+    
+    private func loadConfiguration() {
         let config = ConfigurationService.shared
         
-        // Use configuration service with fallbacks (for safety during development)
+        // Update configuration values
         self.baseURL = config.tmdbBaseURL ?? "https://api.themoviedb.org/3"
         self.accessToken = config.tmdbAccessToken ?? ""
         self.imageBaseURL = config.tmdbImageBaseURL ?? "https://image.tmdb.org/t/p"
         
         // Warn if using fallbacks
         if config.tmdbAccessToken == nil {
-            print("⚠️ TMDB Access Token not found in configuration, using fallback")
+            print("⚠️ TMDB Access Token not found in configuration")
+        } else {
+            print("✅ TMDB Service configured successfully")
         }
     }
     
@@ -31,6 +43,8 @@ class TMDBService: ObservableObject {
     
     /// Search for a person by name
     func searchPerson(name: String) async throws -> TMDBPersonSearchResponse {
+        print("🔍 TMDB: Searching for person '\(name)'")
+        
         let endpoint = "/search/person"
         let queryItems = [
             URLQueryItem(name: "query", value: name),
@@ -62,6 +76,23 @@ class TMDBService: ObservableObject {
         return try await performRequest(endpoint: endpoint, queryItems: queryItems, responseType: TMDBPersonMovieCredits.self)
     }
     
+    /// Search for a movie by title and optionally year
+    func searchMovie(title: String, year: Int? = nil) async throws -> TMDBMovieSearchResponse {
+        let endpoint = "/search/movie"
+        var queryItems = [
+            URLQueryItem(name: "query", value: title),
+            URLQueryItem(name: "include_adult", value: "false"),
+            URLQueryItem(name: "language", value: "en-US"),
+            URLQueryItem(name: "page", value: "1")
+        ]
+        
+        if let year = year {
+            queryItems.append(URLQueryItem(name: "year", value: String(year)))
+        }
+        
+        return try await performRequest(endpoint: endpoint, queryItems: queryItems, responseType: TMDBMovieSearchResponse.self)
+    }
+    
     /// Generate full URL for profile image
     func profileImageURL(path: String?, size: TMDBImageSize = .w500) -> URL? {
         guard let path = path else { return nil }
@@ -81,8 +112,16 @@ class TMDBService: ObservableObject {
         queryItems: [URLQueryItem] = [],
         responseType: T.Type
     ) async throws -> T {
-        guard !accessToken.isEmpty else {
-            throw TMDBError.missingConfiguration("TMDB Access Token not configured")
+        // If access token is empty, try reloading configuration
+        if accessToken.isEmpty {
+            print("🔄 TMDB Access Token empty, attempting to reload configuration...")
+            loadConfiguration()
+            
+            // If still empty after reload, throw error
+            guard !accessToken.isEmpty else {
+                throw TMDBError.missingConfiguration("TMDB Access Token not found in Config.plist")
+            }
+            print("✅ TMDB Access Token loaded successfully")
         }
         
         guard let url = URL(string: baseURL + endpoint) else {

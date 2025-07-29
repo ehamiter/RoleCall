@@ -505,3 +505,50 @@ struct TMDBMovieCredit: Codable, Identifiable {
         case voteAverage = "vote_average"
     }
 }
+
+// MARK: - TMDB Movie Search Models
+struct TMDBMovieSearchResponse: Codable {
+    let page: Int
+    let results: [TMDBMovieSearchResult]
+    let totalPages: Int
+    let totalResults: Int
+    
+    private enum CodingKeys: String, CodingKey {
+        case page, results
+        case totalPages = "total_pages"
+        case totalResults = "total_results"
+    }
+}
+
+struct TMDBMovieSearchResult: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let releaseDate: String?
+    let overview: String?
+    let posterPath: String?
+    let backdropPath: String?
+    let voteAverage: Double
+    let popularity: Double
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, title, overview, popularity
+        case releaseDate = "release_date"
+        case posterPath = "poster_path"
+        case backdropPath = "backdrop_path"
+        case voteAverage = "vote_average"
+    }
+}
+
+// MARK: - Wyzie Subtitle Models
+struct WyzieSubtitleResponse: Codable {
+    let id: String
+    let url: String
+    let flagUrl: String
+    let format: String
+    let encoding: String
+    let display: String
+    let language: String
+    let media: String
+    let isHearingImpaired: Bool
+    let source: String
+}
