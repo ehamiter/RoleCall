@@ -20,6 +20,7 @@ struct MainView: View {
     @State private var errorMessage: String?
     @State private var isMovieInfoExpanded = false
     @State private var showingActorDetail = false
+    @State private var showingPosterDetail = false
     @State private var selectedActorName = ""
     @State private var pendingActorName = "" // Backup for actor name to prevent state loss
 
@@ -143,17 +144,22 @@ struct MainView: View {
                         // Movie poster and basic info section
                         HStack(alignment: .top, spacing: 12) {
                             // Movie poster
-                            AsyncImage(url: posterURL(for: movie.thumb)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(2/3, contentMode: .fit)
-                            } placeholder: {
-                                Rectangle()
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .aspectRatio(2/3, contentMode: .fit)
+                            Button(action: {
+                                showingPosterDetail = true
+                            }) {
+                                AsyncImage(url: posterURL(for: movie.thumb)) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(2/3, contentMode: .fit)
+                                } placeholder: {
+                                    Rectangle()
+                                        .foregroundColor(.gray.opacity(0.3))
+                                        .aspectRatio(2/3, contentMode: .fit)
+                                }
+                                .frame(width: 80)
+                                .cornerRadius(6)
                             }
-                            .frame(width: 80)
-                            .cornerRadius(6)
+                            .buttonStyle(PlainButtonStyle())
 
                             // Basic info
                             VStack(alignment: .leading, spacing: 6) {
@@ -570,6 +576,14 @@ struct MainView: View {
                 movieYear: movieMetadata?.year
             )
         }
+        .sheet(isPresented: $showingPosterDetail) {
+            if let movie = movieMetadata {
+                PosterDetailView(
+                    posterURL: posterURL(for: movie.thumb),
+                    movieTitle: movie.title ?? "Unknown Title"
+                )
+            }
+        }
     }
 
     // Helper functions for URLs
@@ -673,10 +687,10 @@ struct MainView: View {
 
         return LinearGradient(
             colors: [
-                topLeft.opacity(0.35),
-                topRight.opacity(0.21),
-                bottomLeft.opacity(0.21),
-                bottomRight.opacity(0.35)
+                topLeft.opacity(0.4),
+                topRight.opacity(0.2),
+                bottomLeft.opacity(0.2),
+                bottomRight.opacity(0.4)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -759,6 +773,56 @@ struct FlowLayout: Layout {
             }
 
             size = CGSize(width: maxWidth, height: currentPosition.y + rowHeight)
+        }
+    }
+}
+
+// Poster detail view for expanded poster display
+struct PosterDetailView: View {
+    let posterURL: URL?
+    let movieTitle: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack {
+                        Spacer()
+
+                        AsyncImage(url: posterURL) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            Rectangle()
+                                .foregroundColor(.gray.opacity(0.3))
+                                .aspectRatio(2/3, contentMode: .fit)
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(1.5)
+                                )
+                        }
+                        .frame(maxWidth: min(geometry.size.width * 0.9, geometry.size.height * 0.6))
+                        .cornerRadius(12)
+                        .shadow(radius: 10)
+
+                        Spacer()
+                    }
+                    .frame(minHeight: geometry.size.height)
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle(movieTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
