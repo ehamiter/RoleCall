@@ -478,61 +478,6 @@ class PlexService: ObservableObject {
     var activeTrackSessions: [TrackSession] {
         return sessions?.mediaContainer.track ?? []
     }
-    
-    // MARK: - Subtitle Download
-    func downloadSRT(for ratingKey: String) async throws -> String {
-        guard !settings.serverIP.isEmpty, !settings.plexToken.isEmpty else {
-            throw PlexError.notAuthenticated
-        }
-        
-        // Try multiple potential SRT paths since Plex subtitle locations can vary
-        let potentialPaths = [
-            "http://\(settings.serverIP):32400/library/streams/\(ratingKey).srt?X-Plex-Token=\(settings.plexToken)",
-            "http://\(settings.serverIP):32400/library/parts/\(ratingKey)/file.srt?X-Plex-Token=\(settings.plexToken)",
-            "http://\(settings.serverIP):32400/video/:/transcode/universal/subtitles.srt?session=\(UUID().uuidString)&protocol=hls&ratingKey=\(ratingKey)&X-Plex-Token=\(settings.plexToken)"
-        ]
-        
-        for urlString in potentialPaths {
-            guard let url = URL(string: urlString) else {
-                print("❌ Invalid SRT URL: \(urlString)")
-                continue
-            }
-            
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 30.0 // Longer timeout for subtitle download
-            
-            print("📥 Trying SRT download from: \(urlString)")
-            
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response type")
-                    continue
-                }
-                
-                print("📊 SRT download response status: \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 200 {
-                    guard let srtContent = String(data: data, encoding: .utf8), !srtContent.isEmpty else {
-                        print("❌ Unable to decode SRT content as UTF-8 or content is empty")
-                        continue
-                    }
-                    
-                    print("✅ SRT file downloaded successfully from: \(urlString)")
-                    return srtContent
-                }
-                
-            } catch {
-                print("❌ Network error downloading SRT from \(urlString): \(error)")
-                continue
-            }
-        }
-        
-        // If we get here, none of the paths worked
-        print("❌ No SRT files found at any of the attempted paths")
-        throw PlexError.serverError(404)
-    }
 
     // MARK: - XML Parsing
     private func parseActivitiesXML(data: Data) throws -> PlexActivitiesResponse {
