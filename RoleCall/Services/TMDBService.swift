@@ -12,6 +12,7 @@ class TMDBService: ObservableObject {
     private var baseURL: String
     private var accessToken: String
     private var imageBaseURL: String
+    private var isConfigurationLoaded = false
     
     init() {
         // Initialize with fallback values
@@ -19,8 +20,16 @@ class TMDBService: ObservableObject {
         self.accessToken = ""
         self.imageBaseURL = "https://image.tmdb.org/t/p"
         
-        // Load configuration
+        // Force ConfigurationService initialization and load configuration
+        _ = ConfigurationService.shared // Ensure ConfigurationService is initialized
         loadConfiguration()
+        
+        // If still empty after explicit initialization, try once more
+        if accessToken.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.loadConfiguration()
+            }
+        }
     }
     
     private func loadConfiguration() {
@@ -31,11 +40,14 @@ class TMDBService: ObservableObject {
         self.accessToken = config.tmdbAccessToken ?? ""
         self.imageBaseURL = config.tmdbImageBaseURL ?? "https://image.tmdb.org/t/p"
         
-        // Warn if using fallbacks
-        if config.tmdbAccessToken == nil {
+        // Mark as configured if we have a valid token
+        self.isConfigurationLoaded = !accessToken.isEmpty
+        
+        // Log configuration status
+        if config.tmdbAccessToken == nil || config.tmdbAccessToken?.isEmpty == true {
             print("⚠️ TMDB Access Token not found in configuration")
         } else {
-            print("✅ TMDB Service configured successfully")
+            print("✅ TMDB Service configured successfully with token: \(String(accessToken.prefix(20)))...")
         }
     }
     
@@ -112,17 +124,18 @@ class TMDBService: ObservableObject {
         queryItems: [URLQueryItem] = [],
         responseType: T.Type
     ) async throws -> T {
-        // If access token is empty, try reloading configuration
-        if accessToken.isEmpty {
-            print("🔄 TMDB Access Token empty, attempting to reload configuration...")
+        // Ensure we have a valid access token
+        if !isConfigurationLoaded || accessToken.isEmpty {
+            print("🔄 TMDB Service not ready, loading configuration...")
             loadConfiguration()
             
-            // If still empty after reload, throw error
-            guard !accessToken.isEmpty else {
-                throw TMDBError.missingConfiguration("TMDB Access Token not found in Config.plist")
+            guard isConfigurationLoaded && !accessToken.isEmpty else {
+                print("❌ TMDB Service configuration failed")
+                throw TMDBError.missingConfiguration("TMDB Access Token not found in Config.plist. Please check your configuration.")
             }
-            print("✅ TMDB Access Token loaded successfully")
         }
+        
+        print("✅ TMDB Service ready, making API request to \(endpoint)")
         
         guard let url = URL(string: baseURL + endpoint) else {
             throw TMDBError.invalidURL
@@ -133,7 +146,7 @@ class TMDBService: ObservableObject {
         
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
-        request.timeoutInterval = 10
+        request.timeoutInterval = 30 // Increased timeout to 30 seconds
         request.allHTTPHeaderFields = [
             "accept": "application/json",
             "Authorization": "Bearer \(accessToken)"

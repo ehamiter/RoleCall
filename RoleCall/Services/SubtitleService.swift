@@ -129,31 +129,66 @@ class SubtitleService {
     func mapCharactersToActors(cast: [(character: String, actor: String)], srtEntries: [SubtitleEntry]) -> [ActorLine] {
         // Create character mapping with better duplicate handling
         var charMap: [String: String] = [:]
+        var characterNamesToSearch: [String] = []
         
         // First, try exact matches (full character names)
         for (character, actor) in cast {
-            charMap[character.uppercased()] = actor
+            let upperCharacter = character.uppercased()
+            charMap[upperCharacter] = actor
+            characterNamesToSearch.append(upperCharacter)
         }
         
         // Then, add first-word matches (but don't overwrite exact matches)
         for (character, actor) in cast {
-            let firstWord = character.split(separator: " ")[0].uppercased()
-            if charMap[String(firstWord)] == nil {
-                charMap[String(firstWord)] = actor
+            let firstWord = String(character.split(separator: " ")[0]).uppercased()
+            if charMap[firstWord] == nil {
+                charMap[firstWord] = actor
+                characterNamesToSearch.append(firstWord)
             }
         }
         
+        // Sort character names by length (longest first) to match longer names before shorter ones
+        characterNamesToSearch.sort { $0.count > $1.count }
+        
         var mapped: [ActorLine] = []
+        
+        // Search each subtitle entry for character names mentioned in the text
         for entry in srtEntries {
-            if let match = entry.text.range(of: #"^([A-Z][A-Z ]+):"#, options: .regularExpression) {
-                let char = String(entry.text[match]).replacingOccurrences(of: ":", with: "").trimmingCharacters(in: .whitespaces)
+            let upperText = entry.text.uppercased()
+            
+            // Find all character names mentioned in this subtitle entry
+            var charactersInEntry: Set<String> = []
+            
+            for characterName in characterNamesToSearch {
+                // Use word boundary matching to avoid partial matches
+                // Look for the character name as a whole word
+                let pattern = "\\b\(NSRegularExpression.escapedPattern(for: characterName))\\b"
                 
-                // Try exact match first, then first-word match
-                let actor = charMap[char] ?? charMap[String(char.split(separator: " ")[0]).uppercased()]
-                
-                mapped.append(ActorLine(start: entry.start, end: entry.end, character: char, actor: actor, line: entry.text))
+                if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                    let range = NSRange(upperText.startIndex..., in: upperText)
+                    if regex.firstMatch(in: upperText, options: [], range: range) != nil {
+                        charactersInEntry.insert(characterName)
+                    }
+                }
+            }
+            
+            // Create an ActorLine for each character found in this subtitle entry
+            for characterName in charactersInEntry {
+                if let actor = charMap[characterName] {
+                    // Convert back to original case for display
+                    let originalCharacterName = cast.first { $0.character.uppercased() == characterName || String($0.character.split(separator: " ")[0]).uppercased() == characterName }?.character ?? characterName
+                    
+                    mapped.append(ActorLine(
+                        start: entry.start,
+                        end: entry.end,
+                        character: originalCharacterName,
+                        actor: actor,
+                        line: entry.text
+                    ))
+                }
             }
         }
+        
         return mapped
     }
     

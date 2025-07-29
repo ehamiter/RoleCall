@@ -269,31 +269,47 @@ struct ActorDetailView: View {
         errorMessage = nil
         
         Task {
-            do {
-                // First, search for the actor
-                let searchResponse = try await tmdbService.searchPerson(name: actorName)
-                
-                guard let firstResult = searchResponse.results.first else {
-                    await MainActor.run {
-                        self.errorMessage = "Actor not found in TMDB database"
-                        self.isLoading = false
-                    }
-                    return
-                }
-                
-                // Get detailed information
-                async let detailsTask = tmdbService.getPersonDetails(personId: firstResult.id)
-                async let creditsTask = tmdbService.getPersonMovieCredits(personId: firstResult.id)
-                
-                let (details, credits) = try await (detailsTask, creditsTask)
-                
+            await loadActorDataWithRetry()
+        }
+    }
+    
+    private func loadActorDataWithRetry(retryCount: Int = 0) async {
+        let maxRetries = 3
+        
+        do {
+            // First, search for the actor
+            let searchResponse = try await tmdbService.searchPerson(name: actorName)
+            
+            guard let firstResult = searchResponse.results.first else {
                 await MainActor.run {
-                    self.actorDetails = details
-                    self.movieCredits = credits
+                    self.errorMessage = "Actor not found in TMDB database"
                     self.isLoading = false
                 }
+                return
+            }
+            
+            // Get detailed information
+            async let detailsTask = tmdbService.getPersonDetails(personId: firstResult.id)
+            async let creditsTask = tmdbService.getPersonMovieCredits(personId: firstResult.id)
+            
+            let (details, credits) = try await (detailsTask, creditsTask)
+            
+            await MainActor.run {
+                self.actorDetails = details
+                self.movieCredits = credits
+                self.isLoading = false
+            }
+            
+        } catch {
+            if retryCount < maxRetries {
+                print("🔄 Actor detail load failed (attempt \(retryCount + 1)/\(maxRetries + 1)), retrying in \(retryCount + 1) seconds...")
                 
-            } catch {
+                // Progressive delay: 1s, 2s, 3s
+                try? await Task.sleep(nanoseconds: UInt64((retryCount + 1) * 1_000_000_000))
+                
+                // Retry
+                await loadActorDataWithRetry(retryCount: retryCount + 1)
+            } else {
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
