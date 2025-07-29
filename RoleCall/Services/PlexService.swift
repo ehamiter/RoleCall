@@ -816,6 +816,7 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
     private var currentElement = ""
     private var containerSize = 0
     private var roles: [MovieRole] = []
+    private var ratings: [MovieRating] = []
     private var movies: [MovieMetadata] = []
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
@@ -864,6 +865,7 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                 ultraBlurColors: nil
             )
             roles = []
+            ratings = []
 
         case "Role":
             let id = attributeDict["id"] ?? ""
@@ -872,6 +874,27 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
             let thumb = attributeDict["thumb"]
 
             currentRole = MovieRole(id: id, tag: tag, role: role, thumb: thumb)
+
+        case "Rating":
+            print("🔍 DEBUG: Parsing Rating element with attributes: \(attributeDict)")
+
+            let id = attributeDict["id"]
+            let image = attributeDict["image"]
+            let type = attributeDict["type"]
+            let value = Double(attributeDict["value"] ?? "0")
+            let count = Int(attributeDict["count"] ?? "0")
+
+            let rating = MovieRating(
+                id: id,
+                image: image,
+                type: type,
+                value: value,
+                count: count
+            )
+
+            print("🔍 DEBUG: Created rating: image=\(rating.image ?? "nil"), type=\(rating.type ?? "nil"), value=\(rating.value?.description ?? "nil"), count=\(rating.count?.description ?? "nil")")
+
+            ratings.append(rating)
 
         case "UltraBlurColors":
             let topLeft = attributeDict["topLeft"]
@@ -949,13 +972,14 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                     writers: movie.writers,
                     genres: movie.genres,
                     countries: movie.countries,
-                    ratings: movie.ratings,
+                    ratings: ratings,
                     ultraBlurColors: movie.ultraBlurColors
                 )
                 movies.append(movie)
             }
             currentMovie = nil
             roles = []
+            ratings = []
 
         case "MediaContainer":
             let container = PlexMovieMetadataResponse.MovieMetadataContainer(

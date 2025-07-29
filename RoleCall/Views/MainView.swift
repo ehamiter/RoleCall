@@ -183,6 +183,19 @@ struct MainView: View {
                                 // Ratings section
                                 if let ratings = movie.ratings, !ratings.isEmpty {
                                     ratingsView(ratings: ratings)
+                                        .onAppear {
+                                            print("🎭 MainView: Displaying \(ratings.count) ratings")
+                                            for (index, rating) in ratings.enumerated() {
+                                                print("   Rating \(index): type=\(rating.type ?? "nil"), value=\(rating.value ?? -1), image=\(rating.image ?? "nil")")
+                                            }
+                                        }
+                                } else {
+                                    Text("No ratings available")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .onAppear {
+                                            print("🎭 MainView: No ratings to display - ratings: \(movie.ratings?.count ?? 0)")
+                                        }
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,17 +252,44 @@ struct MainView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
 
-            HStack(spacing: 8) {
-                ForEach(ratings.prefix(4), id: \.id) { rating in
-                    HStack(spacing: 4) {
-                        // Rating source icon/image
-                        Group {
+            VStack(alignment: .leading, spacing: 6) {
+                // First row: Rotten Tomatoes (critic and audience)
+                HStack(spacing: 8) {
+                    ForEach(ratings.filter { $0.image?.contains("rottentomatoes") == true }, id: \.computedId) { rating in
+                        HStack(spacing: 4) {
+                            if rating.type == "critic" {
+                                // Tomato with color based on Fresh (≥6.0) vs Rotten (<6.0)
+                                let isFresh = (rating.value ?? 0) >= 6.0
+                                Text("🍅")
+                                    .font(.caption)
+                                    .foregroundColor(isFresh ? .red : .green)
+                            } else {
+                                // Audience rating - keep person icon
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                            }
+
+                            if let value = rating.value {
+                                Text(String(format: "%.1f", value))
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6).opacity(0.6))
+                        .cornerRadius(6)
+                    }
+                    Spacer()
+                }
+
+                // Second row: IMDb and TMDb
+                HStack(spacing: 8) {
+                    ForEach(ratings.filter { $0.image?.contains("imdb") == true || $0.image?.contains("themoviedb") == true }, id: \.computedId) { rating in
+                        HStack(spacing: 4) {
                             if let image = rating.image {
-                                if image.contains("rottentomatoes") {
-                                    Image(systemName: rating.type == "critic" ? "leaf.fill" : "person.fill")
-                                        .foregroundColor(rating.type == "critic" ? .red : .orange)
-                                        .font(.caption)
-                                } else if image.contains("imdb") {
+                                if image.contains("imdb") {
                                     Text("IMDb")
                                         .font(.caption2)
                                         .fontWeight(.bold)
@@ -259,30 +299,28 @@ struct MainView: View {
                                         .font(.caption2)
                                         .fontWeight(.bold)
                                         .foregroundColor(.blue)
-                                } else {
-                                    Image(systemName: "star.fill")
-                                        .foregroundColor(.yellow)
-                                        .font(.caption)
                                 }
-                            } else {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.yellow)
+                            }
+
+                            if let value = rating.value {
+                                Text(String(format: "%.1f", value))
                                     .font(.caption)
+                                    .fontWeight(.semibold)
                             }
                         }
-
-                        if let value = rating.value {
-                            Text(String(format: "%.1f", value))
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6).opacity(0.6))
+                        .cornerRadius(6)
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Color(.systemGray6).opacity(0.6))
-                    .cornerRadius(4)
+                    Spacer()
                 }
-                Spacer()
+            }
+        }
+        .onAppear {
+            print("DEBUG - Movie ratings count: \(ratings.count)")
+            for (index, rating) in ratings.enumerated() {
+                print("DEBUG - Rating \(index): image=\(rating.image ?? "nil"), value=\(rating.value?.description ?? "nil"), type=\(rating.type ?? "nil"), id=\(rating.id ?? "nil")")
             }
         }
     }
@@ -528,7 +566,8 @@ struct MainView: View {
                     print("   storedActorName: '\(actorNameStore.storedActorName)'")
                     return actorNameToUse
                 }(),
-                tmdbService: tmdbService
+                tmdbService: tmdbService,
+                movieYear: movieMetadata?.year
             )
         }
     }

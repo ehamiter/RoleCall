@@ -378,6 +378,47 @@ struct MovieRating: Codable, Identifiable {
     let value: Double?
     let count: Int?
 
+    // Generate a computed ID based on image and type since XML doesn't provide one
+    var computedId: String {
+        return "\(image ?? "unknown")_\(type ?? "unknown")"
+    }
+
+    // Manual initializer for XML parsing
+    init(id: String?, image: String?, type: String?, value: Double?, count: Int?) {
+        self.id = id
+        self.image = image
+        self.type = type
+        self.value = value
+        self.count = count
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        print("🔍 DEBUG: Decoding MovieRating...")
+
+        // Try to decode as XML attributes first, then fall back to elements
+        self.id = try container.decodeIfPresent(String.self, forKey: .id)
+        self.image = try container.decodeIfPresent(String.self, forKey: .image)
+        self.type = try container.decodeIfPresent(String.self, forKey: .type)
+
+        // Handle count which might be a string in XML
+        if let countString = try container.decodeIfPresent(String.self, forKey: .count) {
+            self.count = Int(countString)
+        } else {
+            self.count = try container.decodeIfPresent(Int.self, forKey: .count)
+        }
+
+        // Handle value which might be a string in XML
+        if let valueString = try container.decodeIfPresent(String.self, forKey: .value) {
+            self.value = Double(valueString)
+        } else {
+            self.value = try container.decodeIfPresent(Double.self, forKey: .value)
+        }
+
+        print("🔍 DEBUG: MovieRating decoded - image: \(self.image ?? "nil"), type: \(self.type ?? "nil"), value: \(self.value?.description ?? "nil"), count: \(self.count?.description ?? "nil")")
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id
         case image, type, value, count
@@ -411,7 +452,7 @@ struct TMDBPersonSearchResponse: Codable {
     let results: [TMDBPersonSearchResult]
     let totalPages: Int
     let totalResults: Int
-    
+
     private enum CodingKeys: String, CodingKey {
         case page, results
         case totalPages = "total_pages"
@@ -426,7 +467,7 @@ struct TMDBPersonSearchResult: Codable, Identifiable {
     let knownForDepartment: String?
     let popularity: Double
     let knownFor: [TMDBKnownForMovie]?
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, name, popularity
         case profilePath = "profile_path"
@@ -443,7 +484,7 @@ struct TMDBKnownForMovie: Codable, Identifiable {
     let firstAirDate: String? // For TV shows
     let posterPath: String?
     let mediaType: String
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, title, name
         case releaseDate = "release_date"
@@ -451,11 +492,11 @@ struct TMDBKnownForMovie: Codable, Identifiable {
         case posterPath = "poster_path"
         case mediaType = "media_type"
     }
-    
+
     var displayTitle: String {
         return title ?? name ?? "Unknown Title"
     }
-    
+
     var displayDate: String? {
         return releaseDate ?? firstAirDate
     }
@@ -473,7 +514,7 @@ struct TMDBPersonDetails: Codable, Identifiable {
     let knownForDepartment: String?
     let popularity: Double
     let homepage: String?
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, name, biography, birthday, deathday, popularity, homepage
         case placeOfBirth = "place_of_birth"
@@ -497,7 +538,7 @@ struct TMDBMovieCredit: Codable, Identifiable {
     let posterPath: String?
     let voteAverage: Double
     let popularity: Double
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, title, character, job, popularity
         case releaseDate = "release_date"
@@ -512,7 +553,7 @@ struct TMDBMovieSearchResponse: Codable {
     let results: [TMDBMovieSearchResult]
     let totalPages: Int
     let totalResults: Int
-    
+
     private enum CodingKeys: String, CodingKey {
         case page, results
         case totalPages = "total_pages"
@@ -529,7 +570,7 @@ struct TMDBMovieSearchResult: Codable, Identifiable {
     let backdropPath: String?
     let voteAverage: Double
     let popularity: Double
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, title, overview, popularity
         case releaseDate = "release_date"

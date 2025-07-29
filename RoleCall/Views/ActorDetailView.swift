@@ -10,6 +10,7 @@ import SwiftUI
 struct ActorDetailView: View {
     let actorName: String
     let tmdbService: TMDBService
+    let movieYear: Int? // Year of the movie being watched
     @Environment(\.dismiss) private var dismiss
 
     @State private var actorDetails: TMDBPersonDetails?
@@ -130,6 +131,11 @@ struct ActorDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if let birthday = details.birthday {
                         detailRow(title: "Born", value: formatDate(birthday))
+
+                        // Add age information
+                        if let ageString = formatAgeString(birthday: birthday, deathday: details.deathday) {
+                            detailRow(title: "Age", value: ageString)
+                        }
                     }
 
                     if let deathday = details.deathday {
@@ -337,5 +343,51 @@ struct ActorDetailView: View {
         }
 
         return dateString
+    }
+
+    private func calculateAge(from birthday: String, to targetYear: Int? = nil) -> Int? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        guard let birthDate = formatter.date(from: birthday) else { return nil }
+
+        let calendar = Calendar.current
+        let birthYear = calendar.component(.year, from: birthDate)
+
+        if let targetYear = targetYear {
+            return targetYear - birthYear
+        } else {
+            // Calculate current age
+            let now = Date()
+            let currentYear = calendar.component(.year, from: now)
+            let currentMonth = calendar.component(.month, from: now)
+            let currentDay = calendar.component(.day, from: now)
+
+            let birthMonth = calendar.component(.month, from: birthDate)
+            let birthDay = calendar.component(.day, from: birthDate)
+
+            var age = currentYear - birthYear
+
+            // Adjust if birthday hasn't occurred this year yet
+            if currentMonth < birthMonth || (currentMonth == birthMonth && currentDay < birthDay) {
+                age -= 1
+            }
+
+            return age
+        }
+    }
+
+    private func formatAgeString(birthday: String, deathday: String?) -> String? {
+        guard let currentAge = calculateAge(from: birthday) else { return nil }
+
+        let isDeceased = deathday != nil
+        let currentStatus = isDeceased ? "deceased" : "currently"
+
+        if let movieYear = movieYear,
+           let ageAtMovie = calculateAge(from: birthday, to: movieYear) {
+            return "\(ageAtMovie) (then), \(currentAge) (\(currentStatus))"
+        } else {
+            return "\(currentAge) (\(currentStatus))"
+        }
     }
 }
