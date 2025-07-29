@@ -22,6 +22,18 @@ class PlexService: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "PlexSettings"
 
+    // Custom URLSession with better network configuration
+    private lazy var urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15.0 // 15 seconds for request timeout
+        config.timeoutIntervalForResource = 30.0 // 30 seconds for resource timeout
+        config.waitsForConnectivity = true
+        config.allowsCellularAccess = true
+        config.allowsExpensiveNetworkAccess = true
+        config.allowsConstrainedNetworkAccess = true
+        return URLSession(configuration: config)
+    }()
+
     init() {
         loadSettings()
         checkTokenValidity()
@@ -96,7 +108,7 @@ class PlexService: ObservableObject {
             print("📍 URL: \(url)")
             print("📦 Payload: \(String(data: jsonData, encoding: .utf8) ?? "nil")")
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ Invalid response type")
@@ -187,13 +199,12 @@ class PlexService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 10.0 // 10 second timeout
 
         print("🏠 Checking server capabilities...")
         print("📍 URL: \(urlString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ Invalid response type")
@@ -260,13 +271,12 @@ class PlexService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("application/xml", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 10.0 // 10 second timeout
 
         print("🔄 Fetching server activities...")
         print("📍 URL: \(urlString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ Invalid response type")
@@ -333,13 +343,12 @@ class PlexService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("application/xml", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 10.0 // 10 second timeout
 
         print("🎬 Fetching server sessions...")
         print("📍 URL: \(urlString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ Invalid response type")
@@ -383,13 +392,51 @@ class PlexService: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        do {
-            _ = try await getSessions()
-        } catch {
-            errorMessage = error.localizedDescription
+        // Retry mechanism for network requests
+        let maxRetries = 3
+        var lastError: Error?
+
+        for attempt in 1...maxRetries {
+            do {
+                _ = try await getSessions()
+                // Success - clear any previous error and exit retry loop
+                await MainActor.run {
+                    self.errorMessage = nil
+                }
+                break
+            } catch {
+                lastError = error
+
+                // Check if this is a specific network error that we should retry
+                if let urlError = error as? URLError {
+                    switch urlError.code {
+                    case .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .timedOut, .cancelled:
+                        print("🔄 Network error on attempt \(attempt)/\(maxRetries): \(urlError.localizedDescription)")
+
+                        if attempt < maxRetries {
+                            // Progressive delay: 1s, 2s, 3s
+                            let delaySeconds = attempt
+                            print("   Retrying in \(delaySeconds) second(s)...")
+                            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+                            continue
+                        }
+                    default:
+                        // For other URL errors, don't retry
+                        break
+                    }
+                }
+
+                // For non-URL errors or non-retryable errors, break immediately
+                break
+            }
         }
 
-        isLoading = false
+        await MainActor.run {
+            if let lastError = lastError {
+                self.errorMessage = lastError.localizedDescription
+            }
+            self.isLoading = false
+        }
     }
 
     // MARK: - Movie Metadata
@@ -406,13 +453,12 @@ class PlexService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("application/xml", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 10.0 // 10 second timeout
 
         print("🎬 Fetching movie metadata...")
         print("📍 URL: \(urlString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ Invalid response type")

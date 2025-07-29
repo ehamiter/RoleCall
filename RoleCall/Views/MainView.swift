@@ -69,12 +69,19 @@ struct MainView: View {
             }
         }
         .refreshable {
+            // Cancel any pending metadata task before refreshing
+            metadataTask?.cancel()
+
             // Refresh sessions data on pull-to-refresh
             await plexService.fetchSessions()
-            // Reset to first session if sessions changed
-            selectedSessionIndex = 0
-            // Wait a brief moment for UI to update with new sessions, then load metadata
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+            // Reset to first session after refresh
+            await MainActor.run {
+                selectedSessionIndex = 0
+                movieMetadata = nil // Clear current metadata
+            }
+
+            // Load metadata for the refreshed sessions
             loadMovieMetadata()
         }
         .onDisappear {
