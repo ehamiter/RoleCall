@@ -21,4 +21,4 @@ Provide project context and coding guidelines that AI should follow when generat
 4. **Testing and Quality Assurance**:
     - After any significant change, build the app with a target of iPhone 16 to ensure there are no warnings or errors.
     - Do not run in a simulator. The user will test it on a physical device.
-
+    - Do not use version control; the user will manage the codebase directly.
