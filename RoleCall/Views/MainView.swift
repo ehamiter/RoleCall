@@ -441,11 +441,9 @@ struct MainView: View {
             ], spacing: 12) {
                 ForEach(cast) { role in
                     Button(action: {
-                        // Set both values in same update to avoid race condition
+                        // Set both values synchronously to avoid race condition
                         selectedActorName = role.tag
-                        DispatchQueue.main.async {
-                            showingActorDetail = true
-                        }
+                        showingActorDetail = true
                     }) {
                         VStack(alignment: .leading, spacing: 8) {
                             AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in

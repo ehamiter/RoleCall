@@ -258,6 +258,13 @@ struct ActorDetailView: View {
     }
     
     private func loadActorData() {
+        // Validate that we have a non-empty actor name
+        guard !actorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            errorMessage = "No actor name provided"
+            isLoading = false
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
