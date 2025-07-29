@@ -11,12 +11,12 @@ struct ActorDetailView: View {
     let actorName: String
     let tmdbService: TMDBService
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var actorDetails: TMDBPersonDetails?
     @State private var movieCredits: TMDBPersonMovieCredits?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -27,7 +27,7 @@ struct ActorDetailView: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
-                
+
                 if isLoading {
                     ProgressView("Loading actor details...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -36,17 +36,17 @@ struct ActorDetailView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 48))
                             .foregroundColor(.orange)
-                        
+
                         Text("Error Loading Details")
                             .font(.title2)
                             .fontWeight(.semibold)
-                        
+
                         Text(errorMessage)
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
-                        
+
                         Button("Try Again") {
                             loadActorData()
                         }
@@ -64,17 +64,21 @@ struct ActorDetailView: View {
             })
         }
         .onAppear {
+            print("🎭 ActorDetailView.onAppear called")
+            print("   Initial actorName: '\(actorName)'")
+            print("   ActorName length: \(actorName.count)")
+            print("   ActorName trimmed: '\(actorName.trimmingCharacters(in: .whitespacesAndNewlines))'")
             loadActorData()
         }
     }
-    
+
     @ViewBuilder
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 24) {
                 if let details = actorDetails {
                     actorInfoSection(details: details)
-                    
+
                     if let credits = movieCredits {
                         filmographySection(credits: credits)
                     }
@@ -83,7 +87,7 @@ struct ActorDetailView: View {
             .padding()
         }
     }
-    
+
     @ViewBuilder
     private func actorInfoSection(details: TMDBPersonDetails) -> some View {
         VStack(spacing: 20) {
@@ -104,14 +108,14 @@ struct ActorDetailView: View {
             .frame(width: 200, height: 300)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(radius: 8)
-            
+
             // Basic Info
             VStack(spacing: 12) {
                 Text(details.name)
                     .font(.title)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                
+
                 if let knownFor = details.knownForDepartment {
                     Text("Known for \(knownFor)")
                         .font(.subheadline)
@@ -121,17 +125,17 @@ struct ActorDetailView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(Capsule())
                 }
-                
+
                 // Personal Details
                 VStack(alignment: .leading, spacing: 8) {
                     if let birthday = details.birthday {
                         detailRow(title: "Born", value: formatDate(birthday))
                     }
-                    
+
                     if let deathday = details.deathday {
                         detailRow(title: "Died", value: formatDate(deathday))
                     }
-                    
+
                     if let birthPlace = details.placeOfBirth {
                         detailRow(title: "Birthplace", value: birthPlace)
                     }
@@ -139,14 +143,14 @@ struct ActorDetailView: View {
                 .padding()
                 .background(.thickMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                
+
                 // Biography
                 if let biography = details.biography, !biography.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Biography")
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        
+
                         Text(biography)
                             .font(.body)
                             .lineSpacing(4)
@@ -158,7 +162,7 @@ struct ActorDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func filmographySection(credits: TMDBPersonMovieCredits) -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -166,12 +170,12 @@ struct ActorDetailView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Show top movies by popularity/rating
             let topMovies = credits.cast
                 .sorted { $0.popularity > $1.popularity }
                 .prefix(10)
-            
+
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 12),
                 GridItem(.flexible(), spacing: 12)
@@ -182,7 +186,7 @@ struct ActorDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func movieCard(movie: TMDBMovieCredit) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -201,27 +205,27 @@ struct ActorDetailView: View {
                     )
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(movie.title)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                
+
                 if let character = movie.character, !character.isEmpty {
                     Text("as \(character)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 }
-                
+
                 if let releaseDate = movie.releaseDate {
                     Text(String(releaseDate.prefix(4))) // Just the year
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 // Rating stars
                 if movie.voteAverage > 0 {
                     HStack(spacing: 2) {
@@ -241,7 +245,7 @@ struct ActorDetailView: View {
         .background(.thickMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-    
+
     @ViewBuilder
     private func detailRow(title: String, value: String) -> some View {
         HStack {
@@ -250,13 +254,13 @@ struct ActorDetailView: View {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
                 .frame(width: 80, alignment: .leading)
-            
+
             Text(value)
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
-    
+
     private func loadActorData() {
         // Validate that we have a non-empty actor name
         guard !actorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -264,22 +268,27 @@ struct ActorDetailView: View {
             isLoading = false
             return
         }
-        
+
+        // Debug: Check TMDB service configuration status
+        let configStatus = tmdbService.getConfigurationStatus()
+        print("🎭 ActorDetailView: Loading data for '\(actorName)'")
+        print("   TMDB Config Status - Loaded: \(configStatus.isLoaded), Has Token: \(configStatus.hasToken), Token: \(configStatus.tokenPrefix)")
+
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             await loadActorDataWithRetry()
         }
     }
-    
+
     private func loadActorDataWithRetry(retryCount: Int = 0) async {
         let maxRetries = 3
-        
+
         do {
             // First, search for the actor
             let searchResponse = try await tmdbService.searchPerson(name: actorName)
-            
+
             guard let firstResult = searchResponse.results.first else {
                 await MainActor.run {
                     self.errorMessage = "Actor not found in TMDB database"
@@ -287,26 +296,26 @@ struct ActorDetailView: View {
                 }
                 return
             }
-            
+
             // Get detailed information
             async let detailsTask = tmdbService.getPersonDetails(personId: firstResult.id)
             async let creditsTask = tmdbService.getPersonMovieCredits(personId: firstResult.id)
-            
+
             let (details, credits) = try await (detailsTask, creditsTask)
-            
+
             await MainActor.run {
                 self.actorDetails = details
                 self.movieCredits = credits
                 self.isLoading = false
             }
-            
+
         } catch {
             if retryCount < maxRetries {
                 print("🔄 Actor detail load failed (attempt \(retryCount + 1)/\(maxRetries + 1)), retrying in \(retryCount + 1) seconds...")
-                
+
                 // Progressive delay: 1s, 2s, 3s
                 try? await Task.sleep(nanoseconds: UInt64((retryCount + 1) * 1_000_000_000))
-                
+
                 // Retry
                 await loadActorDataWithRetry(retryCount: retryCount + 1)
             } else {
@@ -317,16 +326,16 @@ struct ActorDetailView: View {
             }
         }
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        
+
         if let date = formatter.date(from: dateString) {
             formatter.dateStyle = .long
             return formatter.string(from: date)
         }
-        
+
         return dateString
     }
 }
