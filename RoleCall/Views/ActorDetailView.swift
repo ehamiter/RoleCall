@@ -377,17 +377,43 @@ struct ActorDetailView: View {
         }
     }
 
-    private func formatAgeString(birthday: String, deathday: String?) -> String? {
-        guard let currentAge = calculateAge(from: birthday) else { return nil }
+    private func calculateAgeAtDeath(birthday: String, deathday: String) -> Int? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
 
+        guard let birthDate = formatter.date(from: birthday),
+              let deathDate = formatter.date(from: deathday) else { return nil }
+
+        let calendar = Calendar.current
+        let ageComponents = calendar.dateComponents([.year, .month, .day], from: birthDate, to: deathDate)
+
+        return ageComponents.year
+    }
+
+    private func formatAgeString(birthday: String, deathday: String?) -> String? {
         let isDeceased = deathday != nil
-        let currentStatus = isDeceased ? "deceased" : "currently"
+
+        // Calculate the appropriate age for display
+        let displayAge: Int?
+        let currentStatus: String
+
+        if isDeceased {
+            // For deceased persons, calculate age at death
+            displayAge = calculateAgeAtDeath(birthday: birthday, deathday: deathday!)
+            currentStatus = "deceased"
+        } else {
+            // For living persons, calculate current age
+            displayAge = calculateAge(from: birthday)
+            currentStatus = "currently"
+        }
+
+        guard let age = displayAge else { return nil }
 
         if let movieYear = movieYear,
            let ageAtMovie = calculateAge(from: birthday, to: movieYear) {
-            return "\(ageAtMovie) (then), \(currentAge) (\(currentStatus))"
+            return "\(ageAtMovie) (then), \(age) (\(currentStatus))"
         } else {
-            return "\(currentAge) (\(currentStatus))"
+            return "\(age) (\(currentStatus))"
         }
     }
 }

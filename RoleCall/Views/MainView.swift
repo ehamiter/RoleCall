@@ -23,6 +23,7 @@ struct MainView: View {
     @State private var showingPosterDetail = false
     @State private var selectedActorName = ""
     @State private var pendingActorName = "" // Backup for actor name to prevent state loss
+    @State private var metadataTask: Task<Void, Never>? // Track current metadata loading task
 
     // Persistent storage for actor name that survives state refreshes
     @StateObject private var actorNameStore = ActorNameStore()
@@ -70,7 +71,15 @@ struct MainView: View {
         .refreshable {
             // Refresh sessions data on pull-to-refresh
             await plexService.fetchSessions()
+            // Reset to first session if sessions changed
+            selectedSessionIndex = 0
+            // Wait a brief moment for UI to update with new sessions, then load metadata
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             loadMovieMetadata()
+        }
+        .onDisappear {
+            // Cancel any pending metadata task when view disappears
+            metadataTask?.cancel()
         }
     }
 
@@ -641,16 +650,30 @@ struct MainView: View {
 
     private func loadMovieMetadata() {
         let videoSessions = plexService.activeVideoSessions
-        guard selectedSessionIndex < videoSessions.count else { return }
+        guard selectedSessionIndex < videoSessions.count else {
+            print("⚠️ MainView: selectedSessionIndex \(selectedSessionIndex) is out of bounds for \(videoSessions.count) sessions")
+            return
+        }
 
         let currentSession = videoSessions[selectedSessionIndex]
+        print("🎬 MainView: Loading metadata for session \(selectedSessionIndex): \(currentSession.title ?? "Unknown")")
+
+        // Cancel any existing metadata loading task
+        metadataTask?.cancel()
 
         isLoading = true
         errorMessage = nil
 
-        Task {
+        metadataTask = Task {
             do {
                 let response = try await plexService.getMovieMetadata(ratingKey: currentSession.id)
+
+                // Check if task was cancelled
+                if Task.isCancelled {
+                    print("🔄 MainView: Metadata loading task was cancelled")
+                    return
+                }
+
                 await MainActor.run {
                     self.movieMetadata = response.mediaContainer.video?.first
                     if let movie = self.movieMetadata {
@@ -665,9 +688,15 @@ struct MainView: View {
                 }
 
             } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
+                // Don't show errors for cancelled tasks
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        print("❌ MainView: Error loading movie metadata: \(error.localizedDescription)")
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                } else {
+                    print("🔄 MainView: Metadata loading was cancelled")
                 }
             }
         }
