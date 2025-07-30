@@ -240,7 +240,7 @@ struct ActorDetailView: View {
                                 .font(.caption2)
                                 .foregroundColor(.yellow)
                         }
-                        Text(String(format: "%.1f", movie.voteAverage))
+                        Text(formatRating(movie.voteAverage))
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -415,5 +415,13 @@ struct ActorDetailView: View {
         } else {
             return "\(age) (\(currentStatus))"
         }
+    }
+
+    // Helper function to safely format rating values
+    private func formatRating(_ value: Double) -> String {
+        if value.isNaN || value.isInfinite {
+            return "N/A"
+        }
+        return String(format: "%.1f", value)
     }
 }

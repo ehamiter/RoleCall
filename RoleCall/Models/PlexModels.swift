@@ -12,6 +12,7 @@ struct PlexSettings: Codable {
     var serverIP: String = ""
     var plexToken: String = ""
     var tokenExpirationDate: Date?
+    var username: String = "" // Store username for convenience
 
     var isTokenValid: Bool {
         guard !plexToken.isEmpty else { return false }
@@ -19,6 +20,10 @@ struct PlexSettings: Codable {
             return Date() < expirationDate
         }
         return true // If no expiration date is set, assume it's valid
+    }
+
+    var hasValidLogin: Bool {
+        return !serverIP.isEmpty && !plexToken.isEmpty && isTokenValid
     }
 }
 

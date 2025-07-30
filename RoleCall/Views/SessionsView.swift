@@ -134,7 +134,8 @@ struct VideoSessionView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    ProgressView(value: Double(viewOffset), total: Double(duration))
+                    let progressValue = min(max(Double(viewOffset), 0.0), Double(duration))
+                    ProgressView(value: progressValue, total: Double(duration))
                         .progressViewStyle(LinearProgressViewStyle())
                 }
             }
@@ -194,7 +195,7 @@ struct VideoSessionView: View {
                             Text("Transcode Progress:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("\(String(format: "%.1f", progress))% at \(String(format: "%.1f", speed))x")
+                            Text("\(formatProgress(progress))% at \(formatSpeed(speed))x")
                                 .font(.caption)
                                 .foregroundColor(.primary)
                             Spacer()
@@ -259,7 +260,8 @@ struct TrackSessionView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    ProgressView(value: Double(viewOffset), total: Double(duration))
+                    let progressValue = min(max(Double(viewOffset), 0.0), Double(duration))
+                    ProgressView(value: progressValue, total: Double(duration))
                         .progressViewStyle(LinearProgressViewStyle())
                 }
             }
@@ -351,6 +353,22 @@ private func formatTime(_ milliseconds: Int) -> String {
     let minutes = totalSeconds / 60
     let seconds = totalSeconds % 60
     return String(format: "%d:%02d", minutes, seconds)
+}
+
+// Helper function to safely format progress values
+private func formatProgress(_ value: Double) -> String {
+    if value.isNaN || value.isInfinite {
+        return "0.0"
+    }
+    return String(format: "%.1f", value)
+}
+
+// Helper function to safely format speed values
+private func formatSpeed(_ value: Double) -> String {
+    if value.isNaN || value.isInfinite {
+        return "1.0"
+    }
+    return String(format: "%.1f", value)
 }
 
 #Preview {

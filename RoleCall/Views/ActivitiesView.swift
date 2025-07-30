@@ -118,12 +118,13 @@ struct ActivityDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
-                        Text("\(progress)%")
+                        Text("\(formatProgress(Double(progress)))%")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
-                    ProgressView(value: Double(progress), total: 100.0)
+                    let safeProgress = min(max(Double(progress), 0.0), 100.0)
+                    ProgressView(value: safeProgress, total: 100.0)
                         .progressViewStyle(LinearProgressViewStyle())
                 }
             }
@@ -223,6 +224,14 @@ struct ActivitiesRawDataView: View {
             return "Error formatting JSON: \(error.localizedDescription)"
         }
     }
+}
+
+// Helper function to safely format progress values
+private func formatProgress(_ value: Double) -> String {
+    if value.isNaN || value.isInfinite {
+        return "0.0"
+    }
+    return String(format: "%.1f", value)
 }
 
 #Preview {

@@ -117,9 +117,21 @@ struct LoginView: View {
                             .font(.caption)
                             .foregroundColor(.orange)
                     } else {
-                        Text("Server: \(plexService.settings.serverIP)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        VStack(spacing: 4) {
+                            Text("Server: \(plexService.settings.serverIP)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            if plexService.settings.serverIP.hasPrefix("10.") || plexService.settings.serverIP.hasPrefix("192.168.") || plexService.settings.serverIP.hasPrefix("172.") {
+                                Text("🏠 Internal network connection")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("🌐 External network connection")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 24)

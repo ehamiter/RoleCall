@@ -31,12 +31,24 @@ class PlexService: ObservableObject {
         config.allowsCellularAccess = true
         config.allowsExpensiveNetworkAccess = true
         config.allowsConstrainedNetworkAccess = true
-        return URLSession(configuration: config)
+
+        // Add better support for self-signed certificates (common with external Plex servers)
+        return URLSession(configuration: config, delegate: PlexURLSessionDelegate(), delegateQueue: nil)
     }()
 
     init() {
         loadSettings()
-        checkTokenValidity()
+
+        // Check if we have saved credentials
+        if settings.hasValidLogin {
+            print("🔐 Found saved credentials for user: \(settings.username)")
+            print("🏠 Server IP: \(settings.serverIP)")
+            isLoggedIn = true
+            checkTokenValidity()
+        } else {
+            print("ℹ️ No valid saved credentials found")
+            isLoggedIn = false
+        }
     }
 
     // MARK: - Settings Management
@@ -66,11 +78,14 @@ class PlexService: ObservableObject {
         do {
             let token = try await authenticateWithPlex(username: username, password: password)
             settings.plexToken = token
+            settings.username = username // Store username for convenience
             settings.tokenExpirationDate = Calendar.current.date(byAdding: .day, value: 30, to: Date()) // Assume 30-day validity
             saveSettings()
             isLoggedIn = true
+            print("✅ Login successful and credentials saved for user: \(username)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ Login failed: \(error.localizedDescription)")
         }
 
         isLoading = false
@@ -163,19 +178,24 @@ class PlexService: ObservableObject {
                 _ = try await getServerCapabilities()
                 // Token is valid, keep logged in status
             } catch {
-                // Token is invalid, log out
-                await MainActor.run {
-                    isLoggedIn = false
-                    settings.plexToken = ""
-                    settings.tokenExpirationDate = nil
-                    saveSettings()
+                // Only clear token if it's actually invalid (401), not for network issues
+                if let plexError = error as? PlexError, case .invalidToken = plexError {
+                    await MainActor.run {
+                        isLoggedIn = false
+                        settings.plexToken = ""
+                        settings.tokenExpirationDate = nil
+                        saveSettings()
+                    }
                 }
+                // For other errors (network issues, server unreachable), keep the token
+                print("⚠️ Token validation failed but keeping token: \(error.localizedDescription)")
             }
         }
     }
 
     func logout() {
         settings.plexToken = ""
+        settings.username = ""
         settings.tokenExpirationDate = nil
         saveSettings()
         isLoggedIn = false
@@ -183,6 +203,7 @@ class PlexService: ObservableObject {
         activities = nil
         sessions = nil
         movieMetadata = nil
+        print("🚪 User logged out and credentials cleared")
     }
 
     // MARK: - Server Capabilities
@@ -191,57 +212,71 @@ class PlexService: ObservableObject {
             throw PlexError.notAuthenticated
         }
 
-        let urlString = "http://\(settings.serverIP):32400/?X-Plex-Token=\(settings.plexToken)"
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL: \(urlString)")
-            throw PlexError.invalidURL
+        // Try HTTPS first (recommended for external connections), then fallback to HTTP
+        let protocols = ["https", "http"]
+        var lastError: Error?
+
+        for urlProtocol in protocols {
+            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/?X-Plex-Token=\(settings.plexToken)"
+            guard let url = URL(string: urlString) else {
+                print("❌ Invalid URL: \(urlString)")
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 10.0 // Shorter timeout for external connections
+
+            print("🏠 Checking server capabilities...")
+            print("📍 URL: \(urlString)")
+
+            do {
+                let (data, response) = try await urlSession.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response type")
+                    throw PlexError.invalidResponse
+                }
+
+                print("📊 Server response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 401 {
+                    print("❌ Server returned 401 - Token invalid or expired")
+                    throw PlexError.invalidToken
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    print("❌ Server error: \(httpResponse.statusCode)")
+                    print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                    throw PlexError.serverError(httpResponse.statusCode)
+                }
+
+                print("✅ Server capabilities received successfully via \(urlProtocol.uppercased())")
+                print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+                let capabilities = try JSONDecoder().decode(PlexCapabilitiesResponse.self, from: data)
+                await MainActor.run {
+                    self.serverCapabilities = capabilities
+                }
+                return capabilities
+
+            } catch let error as PlexError {
+                lastError = error
+                // If it's a token error, don't try other protocols
+                if case .invalidToken = error {
+                    throw error
+                }
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            } catch {
+                lastError = error
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            }
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        print("🏠 Checking server capabilities...")
-        print("📍 URL: \(urlString)")
-
-        do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response type")
-                throw PlexError.invalidResponse
-            }
-
-            print("📊 Server response status: \(httpResponse.statusCode)")
-
-            if httpResponse.statusCode == 401 {
-                print("❌ Server returned 401 - Token invalid or expired")
-                throw PlexError.invalidToken
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                print("❌ Server error: \(httpResponse.statusCode)")
-                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-                throw PlexError.serverError(httpResponse.statusCode)
-            }
-
-            print("✅ Server capabilities received successfully")
-            print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-
-            let capabilities = try JSONDecoder().decode(PlexCapabilitiesResponse.self, from: data)
-            await MainActor.run {
-                self.serverCapabilities = capabilities
-            }
-            return capabilities
-
-        } catch let error as PlexError {
-            throw error
-        } catch let decodingError as DecodingError {
-            print("❌ JSON Decoding error: \(decodingError)")
-            throw PlexError.invalidResponse
-        } catch {
-            print("❌ Network error: \(error)")
-            throw PlexError.invalidResponse
-        }
+        // If we get here, both protocols failed
+        throw lastError ?? PlexError.invalidResponse
     }
 
     func fetchServerCapabilities() async {
@@ -263,57 +298,71 @@ class PlexService: ObservableObject {
             throw PlexError.notAuthenticated
         }
 
-        let urlString = "http://\(settings.serverIP):32400/activities/?X-Plex-Token=\(settings.plexToken)"
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL: \(urlString)")
-            throw PlexError.invalidURL
+        // Try HTTPS first (recommended for external connections), then fallback to HTTP
+        let protocols = ["https", "http"]
+        var lastError: Error?
+
+        for urlProtocol in protocols {
+            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/activities/?X-Plex-Token=\(settings.plexToken)"
+            guard let url = URL(string: urlString) else {
+                print("❌ Invalid URL: \(urlString)")
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("application/xml", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 10.0 // Shorter timeout for external connections
+
+            print("🔄 Fetching server activities...")
+            print("📍 URL: \(urlString)")
+
+            do {
+                let (data, response) = try await urlSession.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response type")
+                    throw PlexError.invalidResponse
+                }
+
+                print("📊 Activities response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 401 {
+                    print("❌ Server returned 401 - Token invalid or expired")
+                    throw PlexError.invalidToken
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    print("❌ Server error: \(httpResponse.statusCode)")
+                    print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                    throw PlexError.serverError(httpResponse.statusCode)
+                }
+
+                print("✅ Activities received successfully via \(urlProtocol.uppercased())")
+                print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+                let activitiesResponse = try parseActivitiesXML(data: data)
+                await MainActor.run {
+                    self.activities = activitiesResponse
+                }
+                return activitiesResponse
+
+            } catch let error as PlexError {
+                lastError = error
+                // If it's a token error, don't try other protocols
+                if case .invalidToken = error {
+                    throw error
+                }
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            } catch {
+                lastError = error
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            }
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/xml", forHTTPHeaderField: "Accept")
-
-        print("🔄 Fetching server activities...")
-        print("📍 URL: \(urlString)")
-
-        do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response type")
-                throw PlexError.invalidResponse
-            }
-
-            print("📊 Activities response status: \(httpResponse.statusCode)")
-
-            if httpResponse.statusCode == 401 {
-                print("❌ Server returned 401 - Token invalid or expired")
-                throw PlexError.invalidToken
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                print("❌ Server error: \(httpResponse.statusCode)")
-                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-                throw PlexError.serverError(httpResponse.statusCode)
-            }
-
-            print("✅ Activities received successfully")
-            print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-
-            let activitiesResponse = try parseActivitiesXML(data: data)
-            await MainActor.run {
-                self.activities = activitiesResponse
-            }
-            return activitiesResponse
-
-        } catch let error as PlexError {
-            throw error
-        } catch let decodingError as DecodingError {
-            print("❌ JSON Decoding error: \(decodingError)")
-            throw PlexError.invalidResponse
-        } catch {
-            print("❌ Network error: \(error)")
-            throw PlexError.invalidResponse
-        }
+        // If we get here, both protocols failed
+        throw lastError ?? PlexError.invalidResponse
     }
 
     func fetchActivities() async {
@@ -335,57 +384,71 @@ class PlexService: ObservableObject {
             throw PlexError.notAuthenticated
         }
 
-        let urlString = "http://\(settings.serverIP):32400/status/sessions?X-Plex-Token=\(settings.plexToken)"
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL: \(urlString)")
-            throw PlexError.invalidURL
+        // Try HTTPS first (recommended for external connections), then fallback to HTTP
+        let protocols = ["https", "http"]
+        var lastError: Error?
+
+        for urlProtocol in protocols {
+            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/status/sessions?X-Plex-Token=\(settings.plexToken)"
+            guard let url = URL(string: urlString) else {
+                print("❌ Invalid URL: \(urlString)")
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("application/xml", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 10.0 // Shorter timeout for external connections
+
+            print("🎬 Fetching server sessions...")
+            print("📍 URL: \(urlString)")
+
+            do {
+                let (data, response) = try await urlSession.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response type")
+                    throw PlexError.invalidResponse
+                }
+
+                print("📊 Sessions response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 401 {
+                    print("❌ Server returned 401 - Token invalid or expired")
+                    throw PlexError.invalidToken
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    print("❌ Server error: \(httpResponse.statusCode)")
+                    print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                    throw PlexError.serverError(httpResponse.statusCode)
+                }
+
+                print("✅ Sessions received successfully via \(urlProtocol.uppercased())")
+                print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+                let sessionsResponse = try parseSessionsXML(data: data)
+                await MainActor.run {
+                    self.sessions = sessionsResponse
+                }
+                return sessionsResponse
+
+            } catch let error as PlexError {
+                lastError = error
+                // If it's a token error, don't try other protocols
+                if case .invalidToken = error {
+                    throw error
+                }
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            } catch {
+                lastError = error
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            }
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/xml", forHTTPHeaderField: "Accept")
-
-        print("🎬 Fetching server sessions...")
-        print("📍 URL: \(urlString)")
-
-        do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response type")
-                throw PlexError.invalidResponse
-            }
-
-            print("📊 Sessions response status: \(httpResponse.statusCode)")
-
-            if httpResponse.statusCode == 401 {
-                print("❌ Server returned 401 - Token invalid or expired")
-                throw PlexError.invalidToken
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                print("❌ Server error: \(httpResponse.statusCode)")
-                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-                throw PlexError.serverError(httpResponse.statusCode)
-            }
-
-            print("✅ Sessions received successfully")
-            print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-
-            let sessionsResponse = try parseSessionsXML(data: data)
-            await MainActor.run {
-                self.sessions = sessionsResponse
-            }
-            return sessionsResponse
-
-        } catch let error as PlexError {
-            throw error
-        } catch let decodingError as DecodingError {
-            print("❌ JSON Decoding error: \(decodingError)")
-            throw PlexError.invalidResponse
-        } catch {
-            print("❌ Network error: \(error)")
-            throw PlexError.invalidResponse
-        }
+        // If we get here, both protocols failed
+        throw lastError ?? PlexError.invalidResponse
     }
 
     func fetchSessions() async {
@@ -445,57 +508,71 @@ class PlexService: ObservableObject {
             throw PlexError.notAuthenticated
         }
 
-        let urlString = "http://\(settings.serverIP):32400/library/metadata/\(ratingKey)?X-Plex-Token=\(settings.plexToken)"
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL: \(urlString)")
-            throw PlexError.invalidURL
+        // Try HTTPS first (recommended for external connections), then fallback to HTTP
+        let protocols = ["https", "http"]
+        var lastError: Error?
+
+        for urlProtocol in protocols {
+            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/library/metadata/\(ratingKey)?X-Plex-Token=\(settings.plexToken)"
+            guard let url = URL(string: urlString) else {
+                print("❌ Invalid URL: \(urlString)")
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("application/xml", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 10.0 // Shorter timeout for external connections
+
+            print("🎬 Fetching movie metadata...")
+            print("📍 URL: \(urlString)")
+
+            do {
+                let (data, response) = try await urlSession.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response type")
+                    throw PlexError.invalidResponse
+                }
+
+                print("📊 Movie metadata response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 401 {
+                    print("❌ Server returned 401 - Token invalid or expired")
+                    throw PlexError.invalidToken
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    print("❌ Server error: \(httpResponse.statusCode)")
+                    print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                    throw PlexError.serverError(httpResponse.statusCode)
+                }
+
+                print("✅ Movie metadata received successfully via \(urlProtocol.uppercased())")
+                print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+                let metadataResponse = try parseMovieMetadataXML(data: data)
+                await MainActor.run {
+                    self.movieMetadata = metadataResponse
+                }
+                return metadataResponse
+
+            } catch let error as PlexError {
+                lastError = error
+                // If it's a token error, don't try other protocols
+                if case .invalidToken = error {
+                    throw error
+                }
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            } catch {
+                lastError = error
+                print("⚠️ Failed with \(urlProtocol.uppercased()): \(error.localizedDescription)")
+                continue
+            }
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/xml", forHTTPHeaderField: "Accept")
-
-        print("🎬 Fetching movie metadata...")
-        print("📍 URL: \(urlString)")
-
-        do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response type")
-                throw PlexError.invalidResponse
-            }
-
-            print("📊 Movie metadata response status: \(httpResponse.statusCode)")
-
-            if httpResponse.statusCode == 401 {
-                print("❌ Server returned 401 - Token invalid or expired")
-                throw PlexError.invalidToken
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                print("❌ Server error: \(httpResponse.statusCode)")
-                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-                throw PlexError.serverError(httpResponse.statusCode)
-            }
-
-            print("✅ Movie metadata received successfully")
-            print("📄 Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-
-            let metadataResponse = try parseMovieMetadataXML(data: data)
-            await MainActor.run {
-                self.movieMetadata = metadataResponse
-            }
-            return metadataResponse
-
-        } catch let error as PlexError {
-            throw error
-        } catch let decodingError as DecodingError {
-            print("❌ JSON Decoding error: \(decodingError)")
-            throw PlexError.invalidResponse
-        } catch {
-            print("❌ Network error: \(error)")
-            throw PlexError.invalidResponse
-        }
+        // If we get here, both protocols failed
+        throw lastError ?? PlexError.invalidResponse
     }
 
     func fetchMovieMetadata(ratingKey: String) async {
@@ -1066,6 +1143,38 @@ enum PlexError: LocalizedError {
             return "Validation error: \(message)"
         case .serverError(let code):
             return "Server error: \(code)"
+        }
+    }
+}
+
+// MARK: - URL Session Delegate for handling SSL certificates
+class PlexURLSessionDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+
+        print("🔒 SSL Challenge received for: \(challenge.protectionSpace.host)")
+        print("🔒 Authentication method: \(challenge.protectionSpace.authenticationMethod)")
+
+        // Allow certificates for Plex servers, including hostname mismatches
+        // This is common when accessing Plex externally with HTTPS via IP address
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+            guard let serverTrust = challenge.protectionSpace.serverTrust else {
+                print("⚠️ No server trust found")
+                completionHandler(.performDefaultHandling, nil)
+                return
+            }
+
+            // Create a policy that allows hostname mismatches for Plex servers
+            let policy = SecPolicyCreateSSL(true, nil)
+            SecTrustSetPolicies(serverTrust, policy)
+
+            // For external Plex servers (like plex.direct), we need to accept the certificate
+            // even when accessed via IP address instead of the certificate hostname
+            let credential = URLCredential(trust: serverTrust)
+            print("✅ Accepting SSL certificate for external Plex server (hostname mismatch allowed)")
+            completionHandler(.useCredential, credential)
+        } else {
+            print("🔒 Using default handling for non-server-trust challenge")
+            completionHandler(.performDefaultHandling, nil)
         }
     }
 }

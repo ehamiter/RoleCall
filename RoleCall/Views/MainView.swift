@@ -293,7 +293,7 @@ struct MainView: View {
                             }
 
                             if let value = rating.value {
-                                Text(String(format: "%.1f", value))
+                                Text(formatRating(value))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                             }
@@ -325,7 +325,7 @@ struct MainView: View {
                             }
 
                             if let value = rating.value {
-                                Text(String(format: "%.1f", value))
+                                Text(formatRating(value))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                             }
@@ -731,6 +731,14 @@ struct MainView: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+
+    // Helper function to safely format rating values
+    private func formatRating(_ value: Double) -> String {
+        if value.isNaN || value.isInfinite {
+            return "N/A"
+        }
+        return String(format: "%.1f", value)
     }
 }
 
