@@ -29,9 +29,22 @@
 		074F19122E38017800221B80 /* RoleCallUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoleCallUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		079CC1CA2E3AAEB0002FBE53 /* Exceptions for "RoleCall" folder in "RoleCall" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 074F18FA2E38017700221B80 /* RoleCall */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		074F18FD2E38017700221B80 /* RoleCall */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				079CC1CA2E3AAEB0002FBE53 /* Exceptions for "RoleCall" folder in "RoleCall" target */,
+			);
 			path = RoleCall;
 			sourceTree = "<group>";
 		};
@@ -400,6 +413,7 @@
 				DEVELOPMENT_TEAM = 24U6GLYEEQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoleCall/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoleCall;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -430,6 +444,7 @@
 				DEVELOPMENT_TEAM = 24U6GLYEEQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoleCall/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoleCall;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
