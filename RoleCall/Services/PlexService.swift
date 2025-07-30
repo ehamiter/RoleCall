@@ -1250,16 +1250,17 @@ class PlexURLSessionDelegate: NSObject, URLSessionDelegate {
                 SecTrustSetPolicies(serverTrust, policy)
 
                 // Evaluate the trust without hostname validation
-                var trustResult: SecTrustResultType = .invalid
-                let status = SecTrustEvaluate(serverTrust, &trustResult)
+                var error: CFError?
+                let isValid = SecTrustEvaluateWithError(serverTrust, &error)
 
-                if status == errSecSuccess && (trustResult == .unspecified || trustResult == .proceed) {
+                if isValid {
                     // Certificate chain is valid, create credential
                     let credential = URLCredential(trust: serverTrust)
                     print("✅ Accepting SSL certificate for external Plex server (hostname validation bypassed)")
                     completionHandler(.useCredential, credential)
                 } else {
-                    print("⚠️ SSL certificate validation failed: status=\(status), result=\(trustResult.rawValue)")
+                    let errorDescription = error?.localizedDescription ?? "Unknown error"
+                    print("⚠️ SSL certificate validation failed: \(errorDescription)")
                     completionHandler(.performDefaultHandling, nil)
                 }
             }
