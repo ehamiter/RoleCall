@@ -22,6 +22,9 @@ class PlexService: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "PlexSettings"
 
+    // Track current sessions task to prevent conflicts
+    private var currentSessionsTask: Task<Void, Never>?
+
     // Custom URLSession with better network configuration
     private lazy var urlSession: URLSession = {
         let config = URLSessionConfiguration.default
@@ -31,6 +34,8 @@ class PlexService: ObservableObject {
         config.allowsCellularAccess = true
         config.allowsExpensiveNetworkAccess = true
         config.allowsConstrainedNetworkAccess = true
+        // Prevent request caching to ensure fresh data
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
         // Add better support for self-signed certificates (common with external Plex servers)
         return URLSession(configuration: config, delegate: PlexURLSessionDelegate(), delegateQueue: nil)
@@ -49,6 +54,11 @@ class PlexService: ObservableObject {
             print("ℹ️ No valid saved credentials found")
             isLoggedIn = false
         }
+    }
+
+    deinit {
+        // Cancel any ongoing tasks when the service is deallocated
+        currentSessionsTask?.cancel()
     }
 
     // MARK: - Settings Management
@@ -395,9 +405,12 @@ class PlexService: ObservableObject {
                 continue
             }
 
+            // Create a fresh request for each attempt
             var request = URLRequest(url: url)
             request.setValue("application/xml", forHTTPHeaderField: "Accept")
+            request.setValue("RoleCall/1.0", forHTTPHeaderField: "User-Agent")
             request.timeoutInterval = 10.0 // Shorter timeout for external connections
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
             print("🎬 Fetching server sessions...")
             print("📍 URL: \(urlString)")
@@ -452,28 +465,53 @@ class PlexService: ObservableObject {
     }
 
     func fetchSessions() async {
-        isLoading = true
-        errorMessage = nil
+        // Cancel any existing sessions fetch task
+        currentSessionsTask?.cancel()
+
+        // Create a new task for fetching sessions
+        currentSessionsTask = Task {
+            await performSessionsFetch()
+        }
+
+        // Wait for the task to complete
+        await currentSessionsTask?.value
+    }
+
+    private func performSessionsFetch() async {
+        await MainActor.run {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
 
         // Retry mechanism for network requests
         let maxRetries = 3
         var lastError: Error?
 
         for attempt in 1...maxRetries {
+            // Check if the task was cancelled
+            if Task.isCancelled {
+                print("🔄 Sessions fetch cancelled")
+                await MainActor.run {
+                    self.isLoading = false
+                }
+                return
+            }
+
             do {
                 _ = try await getSessions()
                 // Success - clear any previous error and exit retry loop
                 await MainActor.run {
                     self.errorMessage = nil
+                    self.isLoading = false
                 }
-                break
+                return
             } catch {
                 lastError = error
 
                 // Check if this is a specific network error that we should retry
                 if let urlError = error as? URLError {
                     switch urlError.code {
-                    case .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .timedOut, .cancelled:
+                    case .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .timedOut:
                         print("🔄 Network error on attempt \(attempt)/\(maxRetries): \(urlError.localizedDescription)")
 
                         if attempt < maxRetries {
@@ -483,6 +521,13 @@ class PlexService: ObservableObject {
                             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
                             continue
                         }
+                    case .cancelled:
+                        // Don't retry cancelled requests
+                        print("🔄 Request was cancelled, not retrying")
+                        await MainActor.run {
+                            self.isLoading = false
+                        }
+                        return
                     default:
                         // For other URL errors, don't retry
                         break
