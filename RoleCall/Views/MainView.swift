@@ -591,7 +591,8 @@ struct MainView: View {
                     return actorNameToUse
                 }(),
                 imdbService: imdbService,
-                movieYear: movieMetadata?.year
+                movieYear: movieMetadata?.year,
+                movieIMDbID: movieMetadata?.imdbID
             )
         }
         .sheet(isPresented: $showingPosterDetail) {

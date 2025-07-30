@@ -293,6 +293,7 @@ struct MovieMetadata: Codable, Identifiable {
     let thumb: String?
     let art: String?
     let originallyAvailableAt: String?
+    let guid: String? // External metadata provider ID
 
     // Cast and Crew
     let roles: [MovieRole]?
@@ -301,18 +302,64 @@ struct MovieMetadata: Codable, Identifiable {
     let genres: [MovieGenre]?
     let countries: [MovieCountry]?
     let ratings: [MovieRating]?
+    let guids: [MovieGuid]? // External IDs array
     let ultraBlurColors: UltraBlurColors?
 
     private enum CodingKeys: String, CodingKey {
         case id = "ratingKey"
-        case title, year, studio, summary, rating, audienceRating, audienceRatingImage, contentRating, duration, tagline, thumb, art, originallyAvailableAt
+        case title, year, studio, summary, rating, audienceRating, audienceRatingImage, contentRating, duration, tagline, thumb, art, originallyAvailableAt, guid
         case roles = "Role"
         case directors = "Director"
         case writers = "Writer"
         case genres = "Genre"
         case countries = "Country"
         case ratings = "Rating"
+        case guids = "Guid"
         case ultraBlurColors = "UltraBlurColors"
+    }
+    
+    // Extract IMDb ID from guid or guids array
+    var imdbID: String? {
+        // Check the main guid field first
+        if let guid = guid {
+            if let imdbID = extractIMDbID(from: guid) {
+                return imdbID
+            }
+        }
+        
+        // Check the guids array for IMDb entries
+        if let guids = guids {
+            for guidEntry in guids {
+                if let imdbID = extractIMDbID(from: guidEntry.id) {
+                    return imdbID
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func extractIMDbID(from guid: String) -> String? {
+        // Plex stores IMDb IDs in formats like:
+        // "imdb://tt1234567"
+        // "com.plexapp.agents.imdb://tt1234567?lang=en"
+        
+        if guid.contains("imdb://") {
+            return guid.components(separatedBy: "imdb://").last?.components(separatedBy: "?").first
+        } else if guid.contains("agents.imdb://") {
+            return guid.components(separatedBy: "agents.imdb://").last?.components(separatedBy: "?").first
+        }
+        
+        return nil
+    }
+}
+
+// MARK: - Movie GUID (External IDs)
+struct MovieGuid: Codable, Identifiable {
+    let id: String // The external ID like "imdb://tt1234567"
+    
+    private enum CodingKeys: String, CodingKey {
+        case id
     }
 }
 

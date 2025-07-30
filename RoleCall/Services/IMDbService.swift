@@ -62,15 +62,22 @@ class IMDbService: ObservableObject {
     // MARK: - Public Methods
 
     /// Search for a person by name (returns multiple potential matches)
-    func searchPerson(name: String) async throws -> IMDbPersonSearchResponse {
+    /// Note: This method now requires additional context since the IMDb search API is broken
+    func searchPerson(name: String, imdbMovieID: String? = nil) async throws -> IMDbPersonSearchResponse {
         print("🔍 IMDb: Searching for person '\(name)'")
-
-        // IMDb REST API doesn't have direct person search, so we'll search titles
-        // and then extract cast information from popular movies featuring that actor
-        let searchResults = try await searchTitlesForActor(name)
-        let actors = try await extractActorsFromTitles(searchResults, targetName: name)
-
-        return IMDbPersonSearchResponse(results: actors)
+        
+        // If we have a movie IMDb ID, search within that movie's cast
+        if let movieID = imdbMovieID {
+            print("🎬 Using movie context: \(movieID)")
+            let actor = try await findActorInMovie(actorName: name, imdbMovieID: movieID)
+            if let actor = actor {
+                return IMDbPersonSearchResponse(results: [actor])
+            }
+        }
+        
+        // Fallback: Without working search API, we cannot find actors by name alone
+        // This should be handled by getting IMDb IDs from Plex metadata
+        throw IMDbError.actorNotFound
     }
 
     /// Get detailed information about a person by IMDb name ID (nm0000001 format)
@@ -166,80 +173,29 @@ class IMDbService: ObservableObject {
 
     // MARK: - Private Methods
 
-    private func searchTitlesForActor(_ actorName: String) async throws -> [TitleSearchResult] {
-        guard let encodedName = actorName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/search/titles?q=\(encodedName)&page_size=10") else {
-            throw IMDbError.invalidURL
+    /// Find an actor by name within a specific movie's cast
+    private func findActorInMovie(actorName: String, imdbMovieID: String) async throws -> IMDbPersonSearchResult? {
+        let credits = try await fetchCredits(imdbID: imdbMovieID)
+        
+        // Find the actor in the movie's cast
+        let matchingActor = credits.credits.first { credit in
+            (credit.category == "ACTOR" || credit.category == "ACTRESS") &&
+            (credit.name.displayName.lowercased().contains(actorName.lowercased()) ||
+             actorName.lowercased().contains(credit.name.displayName.lowercased()))
         }
-
-        var request = URLRequest(url: url)
-        request.setValue("RoleCall/1.0", forHTTPHeaderField: "User-Agent")
-
-        let (data, response) = try await session.data(for: request)
-
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            throw IMDbError.httpError(httpResponse.statusCode)
+        
+        guard let actor = matchingActor else {
+            return nil
         }
-
-        let searchResponse = try JSONDecoder().decode(TitleSearchResponse.self, from: data)
-        return searchResponse.results
-    }
-
-    private func extractActorsFromTitles(_ titles: [TitleSearchResult], targetName: String) async throws -> [IMDbPersonSearchResult] {
-        var foundActors: [IMDbPersonSearchResult] = []
-
-        // Search through first few movie casts to find the actor
-        for (index, title) in titles.prefix(5).enumerated() {
-            do {
-                let credits = try await fetchCredits(imdbID: title.id)
-
-                // Find actors whose names match the search
-                let matchingActors = credits.credits
-                    .filter { credit in
-                        (credit.category == "ACTOR" || credit.category == "ACTRESS") &&
-                        (credit.name.displayName.lowercased().contains(targetName.lowercased()) ||
-                         targetName.lowercased().contains(credit.name.displayName.lowercased()))
-                    }
-                    .map { credit in
-                        IMDbPersonSearchResult(
-                            id: credit.name.id,
-                            name: credit.name.displayName,
-                            profilePath: credit.name.primaryImage?.url,
-                            knownForDepartment: credit.category == "ACTRESS" ? "Acting" : "Acting",
-                            popularity: 0.0, // Not available
-                            knownFor: [IMDbKnownForMovie(
-                                id: title.id,
-                                title: title.primaryTitle,
-                                releaseDate: title.startYear != nil ? "\(title.startYear!)" : nil,
-                                posterPath: title.primaryImage?.url,
-                                mediaType: "movie"
-                            )]
-                        )
-                    }
-
-                foundActors.append(contentsOf: matchingActors)
-
-                // Add delay between requests to be respectful
-                if index < 4 {
-                    try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-                }
-
-            } catch {
-                print("⚠️ Failed to fetch cast for \(title.primaryTitle): \(error)")
-                continue
-            }
-        }
-
-        // Remove duplicates based on ID
-        let uniqueActors = Array(Set(foundActors.map { $0.id })).compactMap { id in
-            foundActors.first { $0.id == id }
-        }
-
-        if uniqueActors.isEmpty {
-            throw IMDbError.actorNotFound
-        }
-
-        return uniqueActors
+        
+        return IMDbPersonSearchResult(
+            id: actor.name.id,
+            name: actor.name.displayName,
+            profilePath: actor.name.primaryImage?.url,
+            knownForDepartment: actor.category == "ACTRESS" ? "Acting" : "Acting",
+            popularity: 0.0, // Not available
+            knownFor: [] // Will be populated by getPersonMovieCredits
+        )
     }
 
     private func fetchPersonDetails(nameID: String) async throws -> IMDbPersonDetails {

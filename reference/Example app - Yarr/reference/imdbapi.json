@@ -1,0 +1,804 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "IMDbAPI",
+    "description": "This is beta version of the IMDb API. It is not yet stable and may change in the future.\n\n* [Telegram Group](https://t.me/imdbapi)\n",
+    "version": "2.0.2-beta",
+    "contact": {
+      "name": "IMDbAPI Telegram Group",
+      "url": "https://t.me/imdbapi"
+    }
+  },
+  "tags": [
+    {
+      "name": "Title",
+      "description": "Operations related to titles (movies, TV shows, etc.)"
+    },
+    {
+      "name": "Name",
+      "description": "Operations related to names (actors, directors, etc.)"
+    }
+  ],
+  "host": "rest.imdbapi.dev",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v2/names/{name_id}": {
+      "get": {
+        "summary": "Get name by ID",
+        "description": "Retrieve a name's details using its IMDb ID.",
+        "operationId": "IMDbAPIService_GetName",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiName"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name_id",
+            "description": "Required. IMDB name ID in the format \"nm1234567\".",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Name"
+        ]
+      }
+    },
+    "/v2/names/{name_id}/known_for": {
+      "get": {
+        "summary": "List known for credits for a name",
+        "description": "Retrieve the 'known for' credits associated with a specific name.",
+        "operationId": "IMDbAPIService_ListNameKnownFor",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiListNameKnownForResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name_id",
+            "description": "Required. IMDB name ID in the format \"nm1234567\".",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "Optional. The maximum number of credits to return per page.\nIf not specified, a default value will be used.\n\nThe value must be between 1 and 50. Default is 10.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page_token",
+            "description": "Optional. Token for pagination, if applicable.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Name"
+        ]
+      }
+    },
+    "/v2/names:batch_get": {
+      "get": {
+        "summary": "Batch get names by IDs",
+        "description": "Retrieve details of multiple names using their IMDb IDs.",
+        "operationId": "IMDbAPIService_BatchGetNames",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiBatchGetNamesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name_ids",
+            "description": "List of IMDb name IDs. Maximum 10 IDs.",
+            "in": "query",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "Name"
+        ]
+      }
+    },
+    "/v2/search/titles": {
+      "get": {
+        "summary": "Search titles by query",
+        "description": "Search for titles using a query string.",
+        "operationId": "IMDbAPIService_SearchTitles",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiSearchTitlesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "description": "Required. The search query for titles.",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page_size",
+            "description": "Optional. The maximum number of titles to return per page.\nIf not specified, a default value will be used.\n\nThe value must be between 1 and 50. Default is 10.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page_token",
+            "description": "Optional. Token for pagination, if applicable.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    },
+    "/v2/titles/{title_id}": {
+      "get": {
+        "summary": "Get title by ID",
+        "description": "Retrieve a title's details using its IMDb ID.",
+        "operationId": "IMDbAPIService_GetTitle",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiTitle"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "title_id",
+            "description": "The IMDb title ID in the format 'tt1234567'.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    },
+    "/v2/titles/{title_id}/akas": {
+      "get": {
+        "summary": "List AKAs for a title",
+        "description": "Retrieve the alternative titles (AKAs) associated with a specific title.",
+        "operationId": "IMDbAPIService_ListTitleAKAs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiListTitleAKAsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "title_id",
+            "description": "Required. IMDb title ID in the format \"tt1234567\".",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    },
+    "/v2/titles/{title_id}/credits": {
+      "get": {
+        "summary": "List credits for a title",
+        "description": "Retrieve the credits associated with a specific title.",
+        "operationId": "IMDbAPIService_ListTitleCredits",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiListTitleCreditsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "title_id",
+            "description": "Required. IMDb title ID in the format \"tt1234567\".",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "categories",
+            "description": "Optional. Filter for credit categories.\n\n - CAST: The CAST category. This enum value is used to represent both ACTOR and ACTRESS roles.\n - ACTOR: The ACTOR category\n - ACTRESS: The ACTRESS category\n - DIRECTOR: The DIRECTOR category\n - WRITER: The WRITER category",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CAST",
+                "ACTOR",
+                "ACTRESS",
+                "DIRECTOR",
+                "WRITER"
+              ]
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "page_size",
+            "description": "Optional. The maximum number of credits to return per page.\nIf not specified, a default value will be used.\n\nThe value must be between 1 and 50. Default is 10.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page_token",
+            "description": "Optional. Token for pagination, if applicable.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    },
+    "/v2/titles/{title_id}/release_dates": {
+      "get": {
+        "summary": "List release dates for a title",
+        "description": "Retrieve the release dates associated with a specific title.",
+        "operationId": "IMDbAPIService_ListTitleReleaseDates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiListTitleReleaseDatesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "title_id",
+            "description": "Required. IMDb title ID in the format \"tt1234567\".",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    },
+    "/v2/titles:batch_get": {
+      "get": {
+        "summary": "Batch get titles by IDs",
+        "description": "Retrieve details of multiple titles using their IMDb IDs.",
+        "operationId": "IMDbAPIService_BatchGetTitles",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imdbapiBatchGetTitlesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "title_ids",
+            "description": "List of IMDb title IDs. Maximum 10 IDs.",
+            "in": "query",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "Title"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "imdbapiAKA": {
+      "type": "object",
+      "properties": {
+        "country_code": {
+          "type": "string",
+          "title": "The ISO 3166-1 alpha-2 country code for the title, (e.g. \"US\" for the United States, \"JP\" for Japan)"
+        },
+        "language_code": {
+          "type": "string",
+          "title": "The ISO 639-3 language code for the title, (e.g. \"eng\" for English, \"jpn\" for Japanese)"
+        },
+        "text": {
+          "type": "string",
+          "description": "The display text of the title in the specified language and country."
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional attributes related to the title,\nsuch as \"original title\", \"working title\", or \"alternative title\"."
+        }
+      },
+      "description": "The AKA (Also Known As) message represents alternative titles\nfor a movie or TV show in different languages and countries."
+    },
+    "imdbapiBatchGetNamesResponse": {
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiName"
+          },
+          "description": "List of names retrieved by their IMDb IDs."
+        }
+      },
+      "description": "Response message for batch getting names by their IDs."
+    },
+    "imdbapiBatchGetTitlesResponse": {
+      "type": "object",
+      "properties": {
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiTitle"
+          },
+          "description": "List of titles retrieved by their IMDb IDs."
+        }
+      }
+    },
+    "imdbapiCredit": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "$ref": "#/definitions/imdbapiTitle",
+          "description": "The Title which this credit is associated with."
+        },
+        "name": {
+          "$ref": "#/definitions/imdbapiName",
+          "description": "The Name who is credited for this role."
+        },
+        "category": {
+          "$ref": "#/definitions/imdbapiCreditCategory",
+          "description": "The category of the credit, such as \"Actor\", \"Director\", etc."
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The characters played by the actor/actress in the title."
+        },
+        "episodes_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The number of episodes in which the person has appeared."
+        }
+      },
+      "description": "The Credit message represents a credit for a person in a title."
+    },
+    "imdbapiCreditCategory": {
+      "type": "string",
+      "enum": [
+        "CAST",
+        "ACTOR",
+        "ACTRESS",
+        "DIRECTOR",
+        "WRITER"
+      ],
+      "description": "The CreditCategory enum defines the different categories of credits that a person can have in a title.\nThese categories include roles such as \"Actor\", \"Director\", \"Writer\", etc.\n\n - CAST: The CAST category. This enum value is used to represent both ACTOR and ACTRESS roles.\n - ACTOR: The ACTOR category\n - ACTRESS: The ACTRESS category\n - DIRECTOR: The DIRECTOR category\n - WRITER: The WRITER category"
+    },
+    "imdbapiDate": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The year of the date, represented as an integer."
+        },
+        "month": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The month of the date, represented as an integer."
+        },
+        "day": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The day of the date, represented as an integer."
+        }
+      },
+      "description": "The Date message represents a specific date,\ntypically used for birth dates, death dates, or release dates."
+    },
+    "imdbapiImage": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL of the image, which can be used to access the image file."
+        },
+        "width": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The width of the image in pixels."
+        },
+        "height": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The height of the image in pixels."
+        }
+      },
+      "description": "The Image message represents an image associated with a person or title in the IMDb database."
+    },
+    "imdbapiListNameKnownForResponse": {
+      "type": "object",
+      "properties": {
+        "known_for": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiCredit"
+          },
+          "description": "List of \"known for\" credits associated with the name."
+        },
+        "next_page_token": {
+          "type": "string",
+          "description": "Optional. Token for the next page of results, if applicable."
+        }
+      },
+      "description": "Response message for listing \"known for\" credits associated with a name."
+    },
+    "imdbapiListTitleAKAsResponse": {
+      "type": "object",
+      "properties": {
+        "akas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiAKA"
+          },
+          "description": "List of AKAs associated with the title."
+        }
+      },
+      "description": "Response message for listing AKAs (Also Known As) associated with a title."
+    },
+    "imdbapiListTitleCreditsResponse": {
+      "type": "object",
+      "properties": {
+        "credits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiCredit"
+          },
+          "description": "List of credits associated with the title."
+        },
+        "next_page_token": {
+          "type": "string",
+          "description": "Token for the next page of results, if applicable."
+        }
+      },
+      "description": "Response message for listing credits associated with a title."
+    },
+    "imdbapiListTitleReleaseDatesResponse": {
+      "type": "object",
+      "properties": {
+        "release_dates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiReleaseDate"
+          },
+          "description": "List of release dates associated with the title."
+        }
+      },
+      "description": "Response message for listing release dates associated with a title."
+    },
+    "imdbapiName": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the name in the IMDb database."
+        },
+        "display_name": {
+          "type": "string",
+          "description": "The display name of the person, typically their full name."
+        },
+        "primary_image": {
+          "$ref": "#/definitions/imdbapiImage",
+          "description": "The primary image associated with the person, such as a profile picture."
+        },
+        "alternative_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Alternative names for the person, which may include stage names,\nnicknames, or other variations."
+        },
+        "primary_professions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of primary professions associated with the person,\nsuch as \"Actor\", \"Director\", \"Producer\", etc."
+        },
+        "biography": {
+          "type": "string",
+          "description": "A brief biography or description of the person, which may include\ntheir career highlights, achievements, and other relevant information."
+        },
+        "birth_name": {
+          "type": "string",
+          "description": "The birth name of the person, which may differ from their display name."
+        },
+        "birth_date": {
+          "$ref": "#/definitions/imdbapiDate",
+          "description": "The birth date of the person, represented as a Date message."
+        },
+        "birth_location": {
+          "type": "string",
+          "description": "The birth location of the person, which may include the city and country of birth."
+        },
+        "death_date": {
+          "$ref": "#/definitions/imdbapiDate",
+          "description": "The death date of the person, represented as a Date message.\nThis field may be empty if the person is still alive."
+        },
+        "death_location": {
+          "type": "string",
+          "description": "The death location of the person, which may include the city and country of death."
+        },
+        "death_reason": {
+          "type": "string",
+          "description": "The reason for the person's death, if applicable."
+        }
+      },
+      "description": "The Name message represents a person in the IMDb database,\nsuch as an actor, director, or producer."
+    },
+    "imdbapiRating": {
+      "type": "object",
+      "properties": {
+        "aggregate_rating": {
+          "type": "number",
+          "format": "float",
+          "description": "The aggregate_rating field contains the average rating of the title,\ntypically on a scale from 1 to 10."
+        },
+        "votes_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The votes_count field contains the total number of votes cast for the title."
+        }
+      },
+      "description": "The Rating message represents the aggregate rating and votes count for a title."
+    },
+    "imdbapiReleaseDate": {
+      "type": "object",
+      "properties": {
+        "country_code": {
+          "type": "string",
+          "title": "The country_code field contains the ISO 3166-1 alpha-2 country code"
+        },
+        "release_date": {
+          "$ref": "#/definitions/imdbapiDate",
+          "description": "The release_date field contains the date when the title was released in the specified country."
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The attributes field contains additional attributes related to the release date.\n\nThese attributes can include information such as\nthe format of the release (e.g., \"Theatrical\", \"DVD\", \"Blu-ray\")."
+        }
+      },
+      "description": "The ReleaseDate message represents the release date of a title in a specific country."
+    },
+    "imdbapiSearchTitlesResponse": {
+      "type": "object",
+      "properties": {
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/imdbapiTitle"
+          },
+          "description": "List of titles matching the search query."
+        },
+        "next_page_token": {
+          "type": "string",
+          "description": "Token for the next page of results, if applicable."
+        }
+      },
+      "description": "Response message for searching titles."
+    },
+    "imdbapiTitle": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the title."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the title, such as \"movie\", \"tvSeries\", \"tvEpisode\", etc."
+        },
+        "primary_title": {
+          "type": "string",
+          "description": "The primary title of the title, which is typically the most recognized name."
+        },
+        "original_title": {
+          "type": "string",
+          "description": "The original title of the title, normally which is the title as it was originally released."
+        },
+        "primary_image": {
+          "$ref": "#/definitions/imdbapiImage",
+          "description": "The primary image associated with the title, such as a poster."
+        },
+        "genres": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The genres field contains a list of genres associated with the title."
+        },
+        "rating": {
+          "$ref": "#/definitions/imdbapiRating",
+          "description": "The rating field contains the aggregate rating and the number of votes for the title."
+        },
+        "start_year": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The start_year field is used for titles that have a defined start, such as movies or TV series."
+        },
+        "end_year": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The end_year field is used for titles that have a defined end, such as TV series."
+        },
+        "runtime_minutes": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The runtime_minutes field contains the total runtime of the title in minutes."
+        },
+        "plot": {
+          "type": "string",
+          "description": "The plot field contains a brief summary or description of the title's storyline."
+        },
+        "is_adult": {
+          "type": "boolean",
+          "description": "The is_adult field indicates whether the title is intended for adult audiences."
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

@@ -11,12 +11,14 @@ struct ActorDetailView: View {
     let actorName: String
     let imdbService: IMDbService
     let movieYear: Int? // Year of the movie being watched
+    let movieIMDbID: String? // IMDb ID of the current movie for context
     @Environment(\.dismiss) private var dismiss
 
     @State private var actorDetails: IMDbPersonDetails?
     @State private var movieCredits: IMDbPersonMovieCredits?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showingActorPosterDetail = false
 
     var body: some View {
         NavigationView {
@@ -71,6 +73,14 @@ struct ActorDetailView: View {
             print("   ActorName trimmed: '\(actorName.trimmingCharacters(in: .whitespacesAndNewlines))'")
             loadActorData()
         }
+        .sheet(isPresented: $showingActorPosterDetail) {
+            if let details = actorDetails {
+                ActorPosterDetailView(
+                    posterURL: imdbService.profileImageURL(path: details.profilePath, size: .original),
+                    actorName: details.name
+                )
+            }
+        }
     }
 
     @ViewBuilder
@@ -93,22 +103,27 @@ struct ActorDetailView: View {
     private func actorInfoSection(details: IMDbPersonDetails) -> some View {
         VStack(spacing: 20) {
             // Profile Photo
-            AsyncImage(url: imdbService.profileImageURL(path: details.profilePath, size: .w500)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .foregroundColor(.gray.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.gray.opacity(0.6))
-                            .font(.system(size: 64))
-                    )
+            Button(action: {
+                showingActorPosterDetail = true
+            }) {
+                AsyncImage(url: imdbService.profileImageURL(path: details.profilePath, size: .w500)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .foregroundColor(.gray.opacity(0.3))
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.gray.opacity(0.6))
+                                .font(.system(size: 64))
+                        )
+                }
+                .frame(width: 200, height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(radius: 8)
             }
-            .frame(width: 200, height: 300)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(radius: 8)
+            .buttonStyle(PlainButtonStyle())
 
             // Basic Info
             VStack(spacing: 12) {
@@ -289,8 +304,8 @@ struct ActorDetailView: View {
         let maxRetries = 3
 
         do {
-            // First, search for the actor
-            let searchResponse = try await imdbService.searchPerson(name: actorName)
+            // First, search for the actor (with movie context if available)
+            let searchResponse = try await imdbService.searchPerson(name: actorName, imdbMovieID: movieIMDbID)
 
             guard let firstResult = searchResponse.results.first else {
                 await MainActor.run {
@@ -420,5 +435,62 @@ struct ActorDetailView: View {
             return "N/A"
         }
         return String(format: "%.1f", value)
+    }
+}
+
+// Actor poster detail view for expanded poster display
+struct ActorPosterDetailView: View {
+    let posterURL: URL?
+    let actorName: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack {
+                        Spacer()
+
+                        AsyncImage(url: posterURL) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            Rectangle()
+                                .foregroundColor(.gray.opacity(0.3))
+                                .aspectRatio(2/3, contentMode: .fit)
+                                .overlay(
+                                    VStack {
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 48))
+                                            .foregroundColor(.gray.opacity(0.6))
+                                        
+                                        ProgressView()
+                                            .scaleEffect(1.5)
+                                            .padding(.top, 8)
+                                    }
+                                )
+                        }
+                        .frame(maxWidth: min(geometry.size.width * 0.9, geometry.size.height * 0.6))
+                        .cornerRadius(12)
+                        .shadow(radius: 10)
+
+                        Spacer()
+                    }
+                    .frame(minHeight: geometry.size.height)
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle(actorName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }

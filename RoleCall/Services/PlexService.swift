@@ -558,7 +558,7 @@ class PlexService: ObservableObject {
         var lastError: Error?
 
         for urlProtocol in protocols {
-            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/library/metadata/\(ratingKey)?X-Plex-Token=\(settings.plexToken)"
+            let urlString = "\(urlProtocol)://\(settings.serverIP):32400/library/metadata/\(ratingKey)?X-Plex-Token=\(settings.plexToken)&includeGuids=1"
             guard let url = URL(string: urlString) else {
                 print("❌ Invalid URL: \(urlString)")
                 continue
@@ -985,6 +985,7 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
     private var containerSize = 0
     private var roles: [MovieRole] = []
     private var ratings: [MovieRating] = []
+    private var guids: [MovieGuid] = []
     private var movies: [MovieMetadata] = []
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
@@ -1024,12 +1025,14 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                 thumb: thumb,
                 art: art,
                 originallyAvailableAt: originallyAvailableAt,
+                guid: nil, // Will be parsed from XML attributes if present
                 roles: [],
                 directors: [],
                 writers: [],
                 genres: [],
                 countries: [],
                 ratings: [],
+                guids: nil, // Will be populated from Guid elements if present
                 ultraBlurColors: nil
             )
             roles = []
@@ -1064,6 +1067,12 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
 
             ratings.append(rating)
 
+        case "Guid":
+            let id = attributeDict["id"] ?? ""
+            let guid = MovieGuid(id: id)
+            guids.append(guid)
+            print("🔍 DEBUG: Parsed Guid: \(id)")
+
         case "UltraBlurColors":
             let topLeft = attributeDict["topLeft"]
             let topRight = attributeDict["topRight"]
@@ -1094,12 +1103,14 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                     thumb: movie.thumb,
                     art: movie.art,
                     originallyAvailableAt: movie.originallyAvailableAt,
+                    guid: movie.guid,
                     roles: movie.roles,
                     directors: movie.directors,
                     writers: movie.writers,
                     genres: movie.genres,
                     countries: movie.countries,
                     ratings: movie.ratings,
+                    guids: movie.guids,
                     ultraBlurColors: ultraBlurColors
                 )
                 currentMovie = movie
@@ -1135,12 +1146,14 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                     thumb: movie.thumb,
                     art: movie.art,
                     originallyAvailableAt: movie.originallyAvailableAt,
+                    guid: movie.guid,
                     roles: roles,
                     directors: movie.directors,
                     writers: movie.writers,
                     genres: movie.genres,
                     countries: movie.countries,
                     ratings: ratings,
+                    guids: guids.isEmpty ? nil : guids,
                     ultraBlurColors: movie.ultraBlurColors
                 )
                 movies.append(movie)
@@ -1148,6 +1161,7 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
             currentMovie = nil
             roles = []
             ratings = []
+            guids = []
 
         case "MediaContainer":
             let container = PlexMovieMetadataResponse.MovieMetadataContainer(
