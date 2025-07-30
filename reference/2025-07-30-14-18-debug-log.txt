@@ -7,55 +7,59 @@
 ✅ TMDB Service configuration loaded successfully after 1 attempts
 🎬 Fetching server sessions...
 📍 URL: https://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ
+App is being debugged, do not track this hang
+Hang detected: 0.46s (debugger attached, not reporting)
 🔒 SSL Challenge received for: 162.239.3.200
 🔒 Authentication method: NSURLAuthenticationMethodServerTrust
-✅ Accepting SSL certificate for external Plex server (hostname mismatch allowed)
+🔍 Detected Plex relay certificate: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct
+✅ Accepting Plex relay certificate (*.plex.direct) for IP access
 ATS failed system trust
 Connection 1: system TLS Trust evaluation failed(-9802)
 Connection 1: TLS Trust encountered error 3:-9802
 Connection 1: encountered error(3:-9802)
-Task <D5C8DA7B-6820-468F-B4F0-ABE2E5734ADA>.<1> HTTP load failed, 0/0 bytes (error code: -1200 [3:-9802])
-Task <D5C8DA7B-6820-468F-B4F0-ABE2E5734ADA>.<1> finished with error [-1200] Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, NSErrorPeerCertificateChainKey=(
-    "<cert(0x109482800) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
-    "<cert(0x109480000) s: R10 i: ISRG Root X1>"
-), NSErrorClientCertificateStateKey=0, NSErrorFailingURLKey=https://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLStringKey=https://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSUnderlyingError=0x1066b2160 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, kCFStreamPropertySSLPeerTrust=<SecTrustRef: 0x106496e80>, _kCFNetworkCFStreamSSLErrorOriginalValue=-9802, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9802, kCFStreamPropertySSLPeerCertificates=(
-    "<cert(0x109482800) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
-    "<cert(0x109480000) s: R10 i: ISRG Root X1>"
+Task <40C83AFA-1A14-4665-8586-CD9A943A909F>.<1> HTTP load failed, 0/0 bytes (error code: -1200 [3:-9802])
+Task <40C83AFA-1A14-4665-8586-CD9A943A909F>.<1> finished with error [-1200] Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, NSErrorPeerCertificateChainKey=(
+    "<cert(0x11ae29000) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
+    "<cert(0x11ae29800) s: R10 i: ISRG Root X1>"
+), NSErrorClientCertificateStateKey=0, NSErrorFailingURLKey=https://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLStringKey=https://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSUnderlyingError=0x11ad3e580 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, kCFStreamPropertySSLPeerTrust=<SecTrustRef: 0x11aeb8480>, _kCFNetworkCFStreamSSLErrorOriginalValue=-9802, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9802, kCFStreamPropertySSLPeerCertificates=(
+    "<cert(0x11ae29000) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
+    "<cert(0x11ae29800) s: R10 i: ISRG Root X1>"
 )}}, _NSURLErrorRelatedURLSessionTaskErrorKey=(
-    "LocalDataTask <D5C8DA7B-6820-468F-B4F0-ABE2E5734ADA>.<1>"
-), _kCFStreamErrorCodeKey=-9802, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <D5C8DA7B-6820-468F-B4F0-ABE2E5734ADA>.<1>, NSURLErrorFailingURLPeerTrustErrorKey=<SecTrustRef: 0x106496e80>, NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made.}
+    "LocalDataTask <40C83AFA-1A14-4665-8586-CD9A943A909F>.<1>"
+), _kCFStreamErrorCodeKey=-9802, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <40C83AFA-1A14-4665-8586-CD9A943A909F>.<1>, NSURLErrorFailingURLPeerTrustErrorKey=<SecTrustRef: 0x11aeb8480>, NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made.}
 ⚠️ Failed with HTTPS: An SSL error has occurred and a secure connection to the server cannot be made.
 🏠 Checking server capabilities...
 📍 URL: http://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ
-Cannot start load of Task <3556ECD4-7D95-4128-AD1A-4573C0C96865>.<3> since it does not conform to ATS policy
-Task <3556ECD4-7D95-4128-AD1A-4573C0C96865>.<3> finished with error [-1022] Error Domain=NSURLErrorDomain Code=-1022 "The resource could not be loaded because the App Transport Security policy requires the use of a secure connection." UserInfo={NSLocalizedDescription=The resource could not be loaded because the App Transport Security policy requires the use of a secure connection., NSErrorFailingURLStringKey=http://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLKey=http://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, _NSURLErrorRelatedURLSessionTaskErrorKey=(
-    "LocalDataTask <3556ECD4-7D95-4128-AD1A-4573C0C96865>.<3>"
-), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <3556ECD4-7D95-4128-AD1A-4573C0C96865>.<3>, NSUnderlyingError=0x1097048d0 {Error Domain=kCFErrorDomainCFNetwork Code=-1022 "(null)"}}
+Cannot start load of Task <6FE81E42-CF7F-4FD3-B288-6E200F497954>.<3> since it does not conform to ATS policy
+Task <6FE81E42-CF7F-4FD3-B288-6E200F497954>.<3> finished with error [-1022] Error Domain=NSURLErrorDomain Code=-1022 "The resource could not be loaded because the App Transport Security policy requires the use of a secure connection." UserInfo={NSLocalizedDescription=The resource could not be loaded because the App Transport Security policy requires the use of a secure connection., NSErrorFailingURLStringKey=http://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLKey=http://162.239.3.200:32400/?X-Plex-Token=t-o99TnSgfwit1szUqHZ, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <6FE81E42-CF7F-4FD3-B288-6E200F497954>.<3>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <6FE81E42-CF7F-4FD3-B288-6E200F497954>.<3>, NSUnderlyingError=0x11aef0a80 {Error Domain=kCFErrorDomainCFNetwork Code=-1022 "(null)"}}
 ⚠️ Failed with HTTP: The resource could not be loaded because the App Transport Security policy requires the use of a secure connection.
 ⚠️ Token validation failed but keeping token: The resource could not be loaded because the App Transport Security policy requires the use of a secure connection.
 🔒 SSL Challenge received for: 162.239.3.200
 🔒 Authentication method: NSURLAuthenticationMethodServerTrust
-✅ Accepting SSL certificate for external Plex server (hostname mismatch allowed)
+🔍 Detected Plex relay certificate: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct
+✅ Accepting Plex relay certificate (*.plex.direct) for IP access
 ATS failed system trust
 Connection 2: system TLS Trust evaluation failed(-9802)
 Connection 2: TLS Trust encountered error 3:-9802
 Connection 2: encountered error(3:-9802)
-Task <50A78548-B58C-4144-B115-4C66EE3A4A83>.<2> HTTP load failed, 0/0 bytes (error code: -1200 [3:-9802])
-Task <50A78548-B58C-4144-B115-4C66EE3A4A83>.<2> finished with error [-1200] Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, NSErrorPeerCertificateChainKey=(
-    "<cert(0x109700000) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
-    "<cert(0x109700800) s: R10 i: ISRG Root X1>"
-), NSErrorClientCertificateStateKey=0, NSErrorFailingURLKey=https://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLStringKey=https://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSUnderlyingError=0x109705260 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, kCFStreamPropertySSLPeerTrust=<SecTrustRef: 0x106496dc0>, _kCFNetworkCFStreamSSLErrorOriginalValue=-9802, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9802, kCFStreamPropertySSLPeerCertificates=(
-    "<cert(0x109700000) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
-    "<cert(0x109700800) s: R10 i: ISRG Root X1>"
+Task <C9116D9F-3AE2-470D-B212-5C6935754C26>.<2> HTTP load failed, 0/0 bytes (error code: -1200 [3:-9802])
+Task <C9116D9F-3AE2-470D-B212-5C6935754C26>.<2> finished with error [-1200] Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, NSErrorPeerCertificateChainKey=(
+    "<cert(0x11ae2b800) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
+    "<cert(0x11aee8000) s: R10 i: ISRG Root X1>"
+), NSErrorClientCertificateStateKey=0, NSErrorFailingURLKey=https://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLStringKey=https://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSUnderlyingError=0x11aef1470 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, kCFStreamPropertySSLPeerTrust=<SecTrustRef: 0x11aeb8540>, _kCFNetworkCFStreamSSLErrorOriginalValue=-9802, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9802, kCFStreamPropertySSLPeerCertificates=(
+    "<cert(0x11ae2b800) s: *.3f81756dc5bc40c68af36e63d228fd8b.plex.direct i: R10>",
+    "<cert(0x11aee8000) s: R10 i: ISRG Root X1>"
 )}}, _NSURLErrorRelatedURLSessionTaskErrorKey=(
-    "LocalDataTask <50A78548-B58C-4144-B115-4C66EE3A4A83>.<2>"
-), _kCFStreamErrorCodeKey=-9802, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <50A78548-B58C-4144-B115-4C66EE3A4A83>.<2>, NSURLErrorFailingURLPeerTrustErrorKey=<SecTrustRef: 0x106496dc0>, NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made.}
+    "LocalDataTask <C9116D9F-3AE2-470D-B212-5C6935754C26>.<2>"
+), _kCFStreamErrorCodeKey=-9802, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <C9116D9F-3AE2-470D-B212-5C6935754C26>.<2>, NSURLErrorFailingURLPeerTrustErrorKey=<SecTrustRef: 0x11aeb8540>, NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made.}
 ⚠️ Failed with HTTPS: An SSL error has occurred and a secure connection to the server cannot be made.
 🎬 Fetching server sessions...
 📍 URL: http://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ
-Cannot start load of Task <E60AE8DE-362C-404B-A973-67DD8C86CF34>.<4> since it does not conform to ATS policy
-Task <E60AE8DE-362C-404B-A973-67DD8C86CF34>.<4> finished with error [-1022] Error Domain=NSURLErrorDomain Code=-1022 "The resource could not be loaded because the App Transport Security policy requires the use of a secure connection." UserInfo={NSLocalizedDescription=The resource could not be loaded because the App Transport Security policy requires the use of a secure connection., NSErrorFailingURLStringKey=http://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLKey=http://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, _NSURLErrorRelatedURLSessionTaskErrorKey=(
-    "LocalDataTask <E60AE8DE-362C-404B-A973-67DD8C86CF34>.<4>"
-), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <E60AE8DE-362C-404B-A973-67DD8C86CF34>.<4>, NSUnderlyingError=0x1097048d0 {Error Domain=kCFErrorDomainCFNetwork Code=-1022 "(null)"}}
+Cannot start load of Task <2073D6D8-369C-4669-A80E-42399B57B14D>.<4> since it does not conform to ATS policy
+Task <2073D6D8-369C-4669-A80E-42399B57B14D>.<4> finished with error [-1022] Error Domain=NSURLErrorDomain Code=-1022 "The resource could not be loaded because the App Transport Security policy requires the use of a secure connection." UserInfo={NSLocalizedDescription=The resource could not be loaded because the App Transport Security policy requires the use of a secure connection., NSErrorFailingURLStringKey=http://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, NSErrorFailingURLKey=http://162.239.3.200:32400/status/sessions?X-Plex-Token=t-o99TnSgfwit1szUqHZ, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <2073D6D8-369C-4669-A80E-42399B57B14D>.<4>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <2073D6D8-369C-4669-A80E-42399B57B14D>.<4>, NSUnderlyingError=0x11aef0900 {Error Domain=kCFErrorDomainCFNetwork Code=-1022 "(null)"}}
 ⚠️ Failed with HTTP: The resource could not be loaded because the App Transport Security policy requires the use of a secure connection.
 ⚠️ MainView: selectedSessionIndex 0 is out of bounds for 0 sessions

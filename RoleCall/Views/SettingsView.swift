@@ -20,7 +20,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Server IP Address")
                             .font(.headline)
-                        TextField("10.0.0.123", text: $serverIP)
+                        TextField("Enter server IP address", text: $serverIP)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .keyboardType(.decimalPad)
                             .autocorrectionDisabled()
@@ -29,7 +29,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         if !serverIP.isEmpty && !isValidIPAddress(serverIP) {
-                            Text("⚠️ Please enter a valid IP address (e.g., 10.0.0.123)")
+                            Text("⚠️ Please enter a valid IP address (e.g., 192.168.1.100)")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }

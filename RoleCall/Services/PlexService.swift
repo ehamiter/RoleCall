@@ -1163,15 +1163,47 @@ class PlexURLSessionDelegate: NSObject, URLSessionDelegate {
                 return
             }
 
-            // Create a policy that allows hostname mismatches for Plex servers
-            let policy = SecPolicyCreateSSL(true, nil)
-            SecTrustSetPolicies(serverTrust, policy)
+            // Check if this is a Plex relay certificate (*.plex.direct) first
+            // These are legitimate certificates but cause hostname mismatch when accessed via IP
+            var isPlexDirectCert = false
+            if let certChain = SecTrustCopyCertificateChain(serverTrust),
+               CFArrayGetCount(certChain) > 0,
+               let cert = CFArrayGetValueAtIndex(certChain, 0) {
+                let certRef = unsafeBitCast(cert, to: SecCertificate.self)
+                var commonName: CFString?
+                if SecCertificateCopyCommonName(certRef, &commonName) == errSecSuccess,
+                   let commonName = commonName as String?,
+                   commonName.contains("plex.direct") {
+                    isPlexDirectCert = true
+                    print("🔍 Detected Plex relay certificate: \(commonName)")
+                }
+            }
 
-            // For external Plex servers (like plex.direct), we need to accept the certificate
-            // even when accessed via IP address instead of the certificate hostname
-            let credential = URLCredential(trust: serverTrust)
-            print("✅ Accepting SSL certificate for external Plex server (hostname mismatch allowed)")
-            completionHandler(.useCredential, credential)
+            if isPlexDirectCert {
+                // This is a legitimate Plex relay certificate - accept it unconditionally
+                let credential = URLCredential(trust: serverTrust)
+                print("✅ Accepting Plex relay certificate (*.plex.direct) for IP access")
+                completionHandler(.useCredential, credential)
+            } else {
+                // For external Plex servers, we need to handle hostname mismatches
+                // Create a policy that doesn't check hostname (since we're connecting via IP)
+                let policy = SecPolicyCreateBasicX509()
+                SecTrustSetPolicies(serverTrust, policy)
+
+                // Evaluate the trust without hostname validation
+                var trustResult: SecTrustResultType = .invalid
+                let status = SecTrustEvaluate(serverTrust, &trustResult)
+
+                if status == errSecSuccess && (trustResult == .unspecified || trustResult == .proceed) {
+                    // Certificate chain is valid, create credential
+                    let credential = URLCredential(trust: serverTrust)
+                    print("✅ Accepting SSL certificate for external Plex server (hostname validation bypassed)")
+                    completionHandler(.useCredential, credential)
+                } else {
+                    print("⚠️ SSL certificate validation failed: status=\(status), result=\(trustResult.rawValue)")
+                    completionHandler(.performDefaultHandling, nil)
+                }
+            }
         } else {
             print("🔒 Using default handling for non-server-trust challenge")
             completionHandler(.performDefaultHandling, nil)
