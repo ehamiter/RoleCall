@@ -12,6 +12,7 @@ struct ActorDetailView: View {
     let imdbService: IMDbService
     let movieYear: Int? // Year of the movie being watched
     let movieIMDbID: String? // IMDb ID of the current movie for context
+    let movieMetadata: MovieMetadata? // Full Plex movie metadata with ratings
     @Environment(\.dismiss) private var dismiss
 
     @State private var actorDetails: IMDbPersonDetails?
@@ -19,6 +20,7 @@ struct ActorDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showingActorPosterDetail = false
+    @State private var selectedMovie: IMDbMovieCredit?
 
     var body: some View {
         NavigationView {
@@ -80,6 +82,15 @@ struct ActorDetailView: View {
                     actorName: details.name
                 )
             }
+        }
+        .sheet(item: $selectedMovie) { movie in
+            // Try to find matching Plex metadata for this movie
+            let matchingPlexMetadata = findMatchingPlexMetadata(for: movie.id)
+            MovieDetailView(
+                movieId: movie.id,
+                imdbService: imdbService,
+                plexMovieMetadata: matchingPlexMetadata
+            )
         }
     }
 
@@ -184,6 +195,27 @@ struct ActorDetailView: View {
         }
     }
 
+    private func getFilteredTopMovies(from credits: IMDbPersonMovieCredits) -> [IMDbMovieCredit] {
+        let allMovies = credits.cast
+        let filteredMovies = allMovies.filter { movie in
+            // Filter out the current movie if we know its IMDb ID
+            if let currentMovieID = movieIMDbID {
+                let shouldExclude = movie.id == currentMovieID
+                if shouldExclude {
+                    print("🎬 Filtering out current movie '\(movie.title)' (ID: \(movie.id)) from Known For list")
+                }
+                return !shouldExclude
+            }
+            return true
+        }
+        
+        print("🎬 Known For: Showing \(min(filteredMovies.count, 10)) of \(filteredMovies.count) movies (filtered from \(allMovies.count) total)")
+        
+        return Array(filteredMovies
+            .sorted { $0.popularity > $1.popularity }
+            .prefix(10))
+    }
+
     @ViewBuilder
     private func filmographySection(credits: IMDbPersonMovieCredits) -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -192,16 +224,13 @@ struct ActorDetailView: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Show top movies by popularity/rating
-            let topMovies = credits.cast
-                .sorted { $0.popularity > $1.popularity }
-                .prefix(10)
+            let topMovies = getFilteredTopMovies(from: credits)
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 12),
                 GridItem(.flexible(), spacing: 12)
             ], spacing: 16) {
-                ForEach(Array(topMovies), id: \.id) { movie in
+                ForEach(topMovies, id: \.id) { movie in
                     movieCard(movie: movie)
                 }
             }
@@ -210,7 +239,10 @@ struct ActorDetailView: View {
 
     @ViewBuilder
     private func movieCard(movie: IMDbMovieCredit) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Button(action: {
+            selectedMovie = movie
+        }) {
+            VStack(alignment: .leading, spacing: 8) {
             AsyncImage(url: imdbService.posterImageURL(path: movie.posterPath)) { image in
                 image
                     .resizable()
@@ -261,10 +293,12 @@ struct ActorDetailView: View {
                     }
                 }
             }
+            }
+            .padding(8)
+            .background(.thickMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .padding(8)
-        .background(.thickMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(PlainButtonStyle())
     }
 
     @ViewBuilder
@@ -280,6 +314,17 @@ struct ActorDetailView: View {
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func findMatchingPlexMetadata(for imdbMovieId: String) -> MovieMetadata? {
+        // If the selected movie ID matches the current movie's IMDb ID, return the current movie metadata
+        if let currentMovieIMDbID = movieIMDbID, currentMovieIMDbID == imdbMovieId {
+            return movieMetadata
+        }
+        
+        // For now, we can't find other movies' Plex metadata without a service reference
+        // In a future enhancement, we could pass a PlexService reference to look up other movies
+        return nil
     }
 
     private func loadActorData() {

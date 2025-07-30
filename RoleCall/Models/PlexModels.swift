@@ -567,10 +567,135 @@ struct IMDbMovieSearchResult: Codable, Identifiable {
     let popularity: Double
 }
 
+// IMDb Movie Details Response
+struct IMDbMovieDetails: Codable, Identifiable {
+    let id: String // IMDb title ID
+    let title: String
+    let originalTitle: String?
+    let releaseDate: String?
+    let runtime: Int? // in minutes
+    let overview: String?
+    let tagline: String?
+    let posterPath: String?
+    let backdropPath: String?
+    let voteAverage: Double
+    let voteCount: Int
+    let popularity: Double
+    let genres: [IMDbGenre]?
+    let productionCountries: [IMDbProductionCountry]?
+    let spokenLanguages: [IMDbSpokenLanguage]?
+    let productionCompanies: [IMDbProductionCompany]?
+    let budget: Int?
+    let revenue: Int?
+    let status: String? // Released, Post Production, etc.
+    let adult: Bool
+    
+    var displayTitle: String {
+        return title
+    }
+    
+    var releaseYear: String? {
+        guard let releaseDate = releaseDate else { return nil }
+        return String(releaseDate.prefix(4))
+    }
+    
+    var formattedRuntime: String? {
+        guard let runtime = runtime else { return nil }
+        let hours = runtime / 60
+        let minutes = runtime % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+}
+
+struct IMDbGenre: Codable, Identifiable {
+    let id: Int
+    let name: String
+}
+
+struct IMDbProductionCountry: Codable {
+    let iso31661: String
+    let name: String
+    
+    private enum CodingKeys: String, CodingKey {
+        case iso31661 = "iso_3166_1"
+        case name
+    }
+}
+
+struct IMDbSpokenLanguage: Codable {
+    let iso6391: String
+    let name: String
+    
+    private enum CodingKeys: String, CodingKey {
+        case iso6391 = "iso_639_1"
+        case name
+    }
+}
+
+struct IMDbProductionCompany: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let logoPath: String?
+    let originCountry: String
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, name
+        case logoPath = "logo_path"
+        case originCountry = "origin_country"
+    }
+}
+
 // MARK: - IMDb REST API Internal Models
 
 struct TitleSearchResponse: Codable {
     let results: [TitleSearchResult]
+}
+
+struct IMDbTitleDetailResponse: Codable {
+    let id: String
+    let primaryTitle: String?
+    let originalTitle: String?
+    let startYear: Int?
+    let runtimeMinutes: Int?
+    let plot: String?
+    let genres: [String]?
+    let rating: IMDbRating?
+    let primaryImage: IMDbImage?
+    let isAdult: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, plot, genres, rating
+        case primaryTitle = "primary_title"
+        case originalTitle = "original_title"
+        case startYear = "start_year"
+        case runtimeMinutes = "runtime_minutes"
+        case primaryImage = "primary_image"
+        case isAdult = "is_adult"
+    }
+}
+
+struct IMDbRating: Codable {
+    let aggregateRating: Double?
+    let numVotes: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case aggregateRating = "aggregate_rating"
+        case numVotes = "num_votes"
+    }
+}
+
+struct IMDbImage: Codable {
+    let url: String?
+    let width: Int?
+    let height: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case url, width, height
+    }
 }
 
 struct TitleSearchResult: Codable {

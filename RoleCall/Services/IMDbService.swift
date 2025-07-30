@@ -127,6 +127,29 @@ class IMDbService: ObservableObject {
         return movieCredits
     }
 
+    /// Get detailed information about a movie by IMDb title ID (tt0000001 format)
+    func getMovieDetails(titleID: String) async throws -> IMDbMovieDetails {
+        print("🔍 IMDb: Getting movie details for '\(titleID)'")
+
+        // Check cache first
+        let cacheKey = "movie_\(titleID)"
+        if let cached = cache[cacheKey] as? (data: IMDbMovieDetails, timestamp: Date) {
+            let age = Date().timeIntervalSince(cached.timestamp)
+            if age < cacheTimeout {
+                print("🗄️ Using cached movie details for \(titleID)")
+                return cached.data
+            }
+        }
+
+        let movieDetails = try await fetchMovieDetails(titleID: titleID)
+
+        // Cache the result
+        cache[cacheKey] = (data: movieDetails, timestamp: Date())
+        cleanupCache()
+
+        return movieDetails
+    }
+
     /// Search for a movie by title (for future use)
     func searchMovie(title: String, year: Int? = nil) async throws -> IMDbMovieSearchResponse {
         print("🔍 IMDb: Searching for movie '\(title)'")
@@ -302,6 +325,71 @@ class IMDbService: ObservableObject {
             }
             // Keep only the most recent entries
             cache = Dictionary(uniqueKeysWithValues: Array(sortedEntries.suffix(maxCacheSize)))
+        }
+    }
+
+    /// Fetch detailed movie information from IMDb API
+    private func fetchMovieDetails(titleID: String) async throws -> IMDbMovieDetails {
+        guard titleID.hasPrefix("tt") else {
+            throw IMDbError.invalidIMDbID
+        }
+
+        guard let url = URL(string: "\(baseURL)/titles/\(titleID)") else {
+            throw IMDbError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("RoleCall/1.0", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode != 200 {
+                    throw IMDbError.httpError(httpResponse.statusCode)
+                }
+            }
+
+            // Parse the response - note that the IMDb API might return a different structure
+            // We'll need to map it to our IMDbMovieDetails model
+            let apiResponse = try JSONDecoder().decode(IMDbTitleDetailResponse.self, from: data)
+            
+            // Debug logging
+            print("🔍 DEBUG: API Response for \(titleID):")
+            print("   primaryTitle: '\(apiResponse.primaryTitle ?? "nil")'")
+            print("   originalTitle: '\(apiResponse.originalTitle ?? "nil")'")
+            print("   rating: \(apiResponse.rating?.aggregateRating ?? 0.0)")
+            print("   plot: '\(apiResponse.plot?.prefix(50) ?? "nil")...'")
+            
+            return IMDbMovieDetails(
+                id: apiResponse.id,
+                title: apiResponse.primaryTitle ?? apiResponse.originalTitle ?? "Unknown Title",
+                originalTitle: apiResponse.originalTitle,
+                releaseDate: apiResponse.startYear != nil ? "\(apiResponse.startYear!)" : nil,
+                runtime: apiResponse.runtimeMinutes,
+                overview: apiResponse.plot,
+                tagline: nil, // Not available in this API
+                posterPath: apiResponse.primaryImage?.url,
+                backdropPath: nil, // Not available in this API
+                voteAverage: apiResponse.rating?.aggregateRating ?? 0.0,
+                voteCount: apiResponse.rating?.numVotes ?? 0,
+                popularity: 0.0, // Not available in this API
+                genres: apiResponse.genres?.enumerated().map { IMDbGenre(id: $0.offset + 1, name: $0.element) },
+                productionCountries: nil, // Not available in this API
+                spokenLanguages: nil, // Not available in this API
+                productionCompanies: nil, // Not available in this API
+                budget: nil, // Not available in this API
+                revenue: nil, // Not available in this API
+                status: nil, // Not available in this API
+                adult: apiResponse.isAdult ?? false
+            )
+
+        } catch let decodingError as DecodingError {
+            print("❌ Failed to decode movie details: \(decodingError)")
+            throw IMDbError.decodingError(decodingError)
+        } catch {
+            print("❌ Network error fetching movie details: \(error)")
+            throw IMDbError.networkError(error)
         }
     }
 }
