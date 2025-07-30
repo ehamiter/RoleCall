@@ -27,7 +27,7 @@ struct MainView: View {
 
     // Persistent storage for actor name that survives state refreshes
     @StateObject private var actorNameStore = ActorNameStore()
-    @StateObject private var tmdbService = TMDBService()
+    @StateObject private var imdbService = IMDbService()
 
     var body: some View {
         ZStack {
@@ -590,7 +590,7 @@ struct MainView: View {
                     print("   storedActorName: '\(actorNameStore.storedActorName)'")
                     return actorNameToUse
                 }(),
-                tmdbService: tmdbService,
+                imdbService: imdbService,
                 movieYear: movieMetadata?.year
             )
         }

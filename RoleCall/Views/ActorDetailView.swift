@@ -9,12 +9,12 @@ import SwiftUI
 
 struct ActorDetailView: View {
     let actorName: String
-    let tmdbService: TMDBService
+    let imdbService: IMDbService
     let movieYear: Int? // Year of the movie being watched
     @Environment(\.dismiss) private var dismiss
 
-    @State private var actorDetails: TMDBPersonDetails?
-    @State private var movieCredits: TMDBPersonMovieCredits?
+    @State private var actorDetails: IMDbPersonDetails?
+    @State private var movieCredits: IMDbPersonMovieCredits?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -90,10 +90,10 @@ struct ActorDetailView: View {
     }
 
     @ViewBuilder
-    private func actorInfoSection(details: TMDBPersonDetails) -> some View {
+    private func actorInfoSection(details: IMDbPersonDetails) -> some View {
         VStack(spacing: 20) {
             // Profile Photo
-            AsyncImage(url: tmdbService.profileImageURL(path: details.profilePath, size: .w500)) { image in
+            AsyncImage(url: imdbService.profileImageURL(path: details.profilePath, size: .w500)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -170,7 +170,7 @@ struct ActorDetailView: View {
     }
 
     @ViewBuilder
-    private func filmographySection(credits: TMDBPersonMovieCredits) -> some View {
+    private func filmographySection(credits: IMDbPersonMovieCredits) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Known For")
                 .font(.title2)
@@ -194,9 +194,9 @@ struct ActorDetailView: View {
     }
 
     @ViewBuilder
-    private func movieCard(movie: TMDBMovieCredit) -> some View {
+    private func movieCard(movie: IMDbMovieCredit) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: tmdbService.posterImageURL(path: movie.posterPath)) { image in
+            AsyncImage(url: imdbService.posterImageURL(path: movie.posterPath)) { image in
                 image
                     .resizable()
                     .aspectRatio(2/3, contentMode: .fit)
@@ -275,10 +275,7 @@ struct ActorDetailView: View {
             return
         }
 
-        // Debug: Check TMDB service configuration status
-        let configStatus = tmdbService.getConfigurationStatus()
         print("🎭 ActorDetailView: Loading data for '\(actorName)'")
-        print("   TMDB Config Status - Loaded: \(configStatus.isLoaded), Has Token: \(configStatus.hasToken), Token: \(configStatus.tokenPrefix)")
 
         isLoading = true
         errorMessage = nil
@@ -293,19 +290,19 @@ struct ActorDetailView: View {
 
         do {
             // First, search for the actor
-            let searchResponse = try await tmdbService.searchPerson(name: actorName)
+            let searchResponse = try await imdbService.searchPerson(name: actorName)
 
             guard let firstResult = searchResponse.results.first else {
                 await MainActor.run {
-                    self.errorMessage = "Actor not found in TMDB database"
+                    self.errorMessage = "Actor not found in IMDb database"
                     self.isLoading = false
                 }
                 return
             }
 
             // Get detailed information
-            async let detailsTask = tmdbService.getPersonDetails(personId: firstResult.id)
-            async let creditsTask = tmdbService.getPersonMovieCredits(personId: firstResult.id)
+            async let detailsTask = imdbService.getPersonDetails(nameID: firstResult.id)
+            async let creditsTask = imdbService.getPersonMovieCredits(nameID: firstResult.id)
 
             let (details, credits) = try await (detailsTask, creditsTask)
 

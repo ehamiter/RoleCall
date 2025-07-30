@@ -449,67 +449,38 @@ struct PlexErrorResponse: Codable {
     }
 }
 
-// MARK: - TMDB Models
 
-// TMDB Person Search Response
-struct TMDBPersonSearchResponse: Codable {
-    let page: Int
-    let results: [TMDBPersonSearchResult]
-    let totalPages: Int
-    let totalResults: Int
+// MARK: - IMDb Models (Replacing TMDB)
 
-    private enum CodingKeys: String, CodingKey {
-        case page, results
-        case totalPages = "total_pages"
-        case totalResults = "total_results"
-    }
+// IMDb Person Search Response
+struct IMDbPersonSearchResponse: Codable {
+    let results: [IMDbPersonSearchResult]
 }
 
-struct TMDBPersonSearchResult: Codable, Identifiable {
-    let id: Int
+struct IMDbPersonSearchResult: Codable, Identifiable {
+    let id: String // IMDb name ID (nm0000001 format)
     let name: String
     let profilePath: String?
     let knownForDepartment: String?
     let popularity: Double
-    let knownFor: [TMDBKnownForMovie]?
-
-    private enum CodingKeys: String, CodingKey {
-        case id, name, popularity
-        case profilePath = "profile_path"
-        case knownForDepartment = "known_for_department"
-        case knownFor = "known_for"
-    }
+    let knownFor: [IMDbKnownForMovie]?
 }
 
-struct TMDBKnownForMovie: Codable, Identifiable {
-    let id: Int
+struct IMDbKnownForMovie: Codable, Identifiable {
+    let id: String // IMDb title ID (tt0000001 format)
     let title: String?
-    let name: String? // For TV shows
     let releaseDate: String?
-    let firstAirDate: String? // For TV shows
     let posterPath: String?
     let mediaType: String
 
-    private enum CodingKeys: String, CodingKey {
-        case id, title, name
-        case releaseDate = "release_date"
-        case firstAirDate = "first_air_date"
-        case posterPath = "poster_path"
-        case mediaType = "media_type"
-    }
-
     var displayTitle: String {
-        return title ?? name ?? "Unknown Title"
-    }
-
-    var displayDate: String? {
-        return releaseDate ?? firstAirDate
+        return title ?? "Unknown Title"
     }
 }
 
-// TMDB Person Details Response
-struct TMDBPersonDetails: Codable, Identifiable {
-    let id: Int
+// IMDb Person Details Response
+struct IMDbPersonDetails: Codable, Identifiable {
+    let id: String // IMDb name ID
     let name: String
     let biography: String?
     let birthday: String?
@@ -518,24 +489,16 @@ struct TMDBPersonDetails: Codable, Identifiable {
     let profilePath: String?
     let knownForDepartment: String?
     let popularity: Double
-    let homepage: String?
-
-    private enum CodingKeys: String, CodingKey {
-        case id, name, biography, birthday, deathday, popularity, homepage
-        case placeOfBirth = "place_of_birth"
-        case profilePath = "profile_path"
-        case knownForDepartment = "known_for_department"
-    }
 }
 
-// TMDB Person Movie Credits Response
-struct TMDBPersonMovieCredits: Codable {
-    let cast: [TMDBMovieCredit]
-    let crew: [TMDBMovieCredit]
+// IMDb Person Movie Credits Response
+struct IMDbPersonMovieCredits: Codable {
+    let cast: [IMDbMovieCredit]
+    let crew: [IMDbMovieCredit]
 }
 
-struct TMDBMovieCredit: Codable, Identifiable {
-    let id: Int
+struct IMDbMovieCredit: Codable, Identifiable {
+    let id: String // IMDb title ID
     let title: String
     let character: String?
     let job: String?
@@ -543,46 +506,154 @@ struct TMDBMovieCredit: Codable, Identifiable {
     let posterPath: String?
     let voteAverage: Double
     let popularity: Double
-
-    private enum CodingKeys: String, CodingKey {
-        case id, title, character, job, popularity
-        case releaseDate = "release_date"
-        case posterPath = "poster_path"
-        case voteAverage = "vote_average"
-    }
 }
 
-// MARK: - TMDB Movie Search Models
-struct TMDBMovieSearchResponse: Codable {
-    let page: Int
-    let results: [TMDBMovieSearchResult]
-    let totalPages: Int
-    let totalResults: Int
-
-    private enum CodingKeys: String, CodingKey {
-        case page, results
-        case totalPages = "total_pages"
-        case totalResults = "total_results"
-    }
+// IMDb Movie Search Response
+struct IMDbMovieSearchResponse: Codable {
+    let results: [IMDbMovieSearchResult]
 }
 
-struct TMDBMovieSearchResult: Codable, Identifiable {
-    let id: Int
+struct IMDbMovieSearchResult: Codable, Identifiable {
+    let id: String // IMDb title ID
     let title: String
     let releaseDate: String?
     let overview: String?
     let posterPath: String?
-    let backdropPath: String?
     let voteAverage: Double
     let popularity: Double
+}
 
-    private enum CodingKeys: String, CodingKey {
-        case id, title, overview, popularity
-        case releaseDate = "release_date"
-        case posterPath = "poster_path"
-        case backdropPath = "backdrop_path"
-        case voteAverage = "vote_average"
+// MARK: - IMDb REST API Internal Models
+
+struct TitleSearchResponse: Codable {
+    let results: [TitleSearchResult]
+}
+
+struct TitleSearchResult: Codable {
+    let id: String
+    let primaryTitle: String
+    let startYear: Int?
+    let plot: String?
+    let genres: [String]?
+    let rating: RestRating?
+    let primaryImage: RestImage?
+
+    enum CodingKeys: String, CodingKey {
+        case id, plot, genres, rating
+        case primaryTitle = "primary_title"
+        case startYear = "start_year"
+        case primaryImage = "primary_image"
     }
+}
+
+struct RestCreditsResponse: Codable {
+    let credits: [RestCredit]
+}
+
+struct RestCredit: Codable {
+    let name: RestName
+    let category: String
+    let characters: [String]?
+}
+
+struct RestName: Codable {
+    let id: String
+    let displayName: String
+    let primaryImage: RestImage?
+    let birthDate: RestBirthDate?
+    let deathDate: RestBirthDate?
+    let birthLocation: String?
+    let deathLocation: String?
+    let deathReason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+        case primaryImage = "primary_image"
+        case birthDate = "birth_date"
+        case deathDate = "death_date"
+        case birthLocation = "birth_location"
+        case deathLocation = "death_location"
+        case deathReason = "death_reason"
+    }
+}
+
+struct RestPersonInfo: Codable {
+    let id: String
+    let displayName: String
+    let primaryImage: RestImage?
+    let biography: String?
+    let birthDate: RestBirthDate?
+    let birthLocation: String?
+    let deathDate: RestBirthDate?
+    let deathLocation: String?
+    let deathReason: String?
+    let primaryProfessions: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, biography
+        case displayName = "display_name"
+        case primaryImage = "primary_image"
+        case birthDate = "birth_date"
+        case birthLocation = "birth_location"
+        case deathDate = "death_date"
+        case deathLocation = "death_location"
+        case deathReason = "death_reason"
+        case primaryProfessions = "primary_professions"
+    }
+}
+
+struct RestBirthDate: Codable {
+    let year: Int?
+    let month: Int?
+    let day: Int?
+}
+
+struct RestKnownForResponse: Codable {
+    let knownFor: [RestKnownForCredit]
+
+    enum CodingKeys: String, CodingKey {
+        case knownFor = "known_for"
+    }
+}
+
+struct RestKnownForCredit: Codable {
+    let title: RestKnownForTitle?
+    let category: String?
+    let characters: [String]?
+}
+
+struct RestKnownForTitle: Codable {
+    let id: String
+    let primaryTitle: String
+    let startYear: Int?
+    let genres: [String]?
+    let rating: RestRating?
+    let primaryImage: RestImage?
+    let plot: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, genres, rating, plot
+        case primaryTitle = "primary_title"
+        case startYear = "start_year"
+        case primaryImage = "primary_image"
+    }
+}
+
+struct RestRating: Codable {
+    let aggregateRating: Double
+    let votesCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case aggregateRating = "aggregate_rating"
+        case votesCount = "votes_count"
+    }
+}
+
+struct RestImage: Codable {
+    let url: String
+    let width: Int
+    let height: Int
 }
 
 // MARK: - Wyzie Subtitle Models
