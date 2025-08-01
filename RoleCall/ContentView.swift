@@ -32,6 +32,7 @@ struct ContentView: View {
                 }
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showingSettings) {
             SettingsView(plexService: plexService)
         }

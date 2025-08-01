@@ -98,65 +98,72 @@ struct MovieDetailView: View {
         let posterURL = imdbService.posterImageURL(path: details.posterPath, size: .w500)
         let _ = print("🔍 DEBUG: Loading poster image from URL: \(posterURL?.absoluteString ?? "nil")")
         
-        VStack(spacing: 20) {
-            // Movie Poster
-            Button(action: {
-                showingPosterDetail = true
-            }) {
-                AsyncImage(url: posterURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(2/3, contentMode: .fit)
-                        .frame(maxHeight: 400)
-                } placeholder: {
-                    Rectangle()
-                        .foregroundColor(.gray.opacity(0.3))
-                        .aspectRatio(2/3, contentMode: .fit)
-                        .frame(maxHeight: 400)
-                        .overlay(
-                            Image(systemName: "film")
-                                .foregroundColor(.gray.opacity(0.6))
-                                .font(.system(size: 48))
-                        )
+        VStack(spacing: 32) {
+            // Movie Poster - Centered
+            HStack {
+                Spacer()
+                Button(action: {
+                    showingPosterDetail = true
+                }) {
+                    AsyncImage(url: posterURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(2/3, contentMode: .fit)
+                            .frame(maxWidth: 200, maxHeight: 300)
+                    } placeholder: {
+                        Rectangle()
+                            .foregroundColor(.gray.opacity(0.3))
+                            .aspectRatio(2/3, contentMode: .fit)
+                            .frame(maxWidth: 200, maxHeight: 300)
+                            .overlay(
+                                Image(systemName: "film")
+                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.system(size: 48))
+                            )
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(radius: 10)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(radius: 8)
+                .buttonStyle(PlainButtonStyle())
+                Spacer()
             }
-            .buttonStyle(PlainButtonStyle())
             
-            // Basic Info
-            VStack(spacing: 12) {
-                Text(plexMovieMetadata?.title ?? details.displayTitle)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-                
-                // Movie Details
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        if let year = plexMovieMetadata?.year ?? Int(details.releaseYear ?? "") {
-                            Text("\(year)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if let runtime = details.formattedRuntime {
-                            Text("•")
-                                .foregroundColor(.secondary)
-                            Text(runtime)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
+            // Movie Title
+            Text(plexMovieMetadata?.title ?? details.displayTitle)
+                .font(.title)
+                .fontWeight(.bold)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            // Basic Info Card
+            VStack(alignment: .leading, spacing: 16) {
+                // Year and Runtime
+                HStack(spacing: 8) {
+                    if let year = plexMovieMetadata?.year ?? Int(details.releaseYear ?? "") {
+                        Text("\(year)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     
-                    // Ratings - prefer Plex ratings first, then IMDb
-                    ratingsView(plexRatings: plexMovieMetadata?.ratings,
-                               imdbRating: details.voteAverage,
-                               imdbVoteCount: details.voteCount)
+                    if let runtime = details.formattedRuntime {
+                        Text("•")
+                            .foregroundColor(.secondary)
+                        Text(runtime)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
                 }
-                .padding()
-                .background(.thickMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Ratings - prefer Plex ratings first, then IMDb
+                ratingsView(plexRatings: plexMovieMetadata?.ratings,
+                           imdbRating: details.voteAverage,
+                           imdbVoteCount: details.voteCount)
+            }
+            .padding(20)
+            .background(.thickMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
                 
                 // Tagline
                 if let tagline = details.tagline, !tagline.isEmpty {
@@ -173,16 +180,17 @@ struct MovieDetailView: View {
                 // Plot/Overview - prefer Plex summary first, then IMDb overview
                 let plotText = plexMovieMetadata?.summary ?? details.overview
                 if let plot = plotText, !plot.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 16) {
                         Text("Plot")
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         Text(plot)
                             .font(.body)
-                            .lineSpacing(4)
+                            .lineSpacing(6)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding()
+                    .padding(20)
                     .background(.thickMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
@@ -191,9 +199,13 @@ struct MovieDetailView: View {
                 if let genres = details.genres, !genres.isEmpty {
                     genresView(genres: genres)
                 }
+                
+                // Countries (from Plex metadata)
+                if let countries = plexMovieMetadata?.countries, !countries.isEmpty {
+                    countriesView(countries: countries)
+                }
             }
         }
-    }
     
     @ViewBuilder
     private func ratingsView(plexRatings: [MovieRating]?, imdbRating: Double, imdbVoteCount: Int) -> some View {
@@ -284,7 +296,7 @@ struct MovieDetailView: View {
 
     @ViewBuilder
     private func genresView(genres: [IMDbGenre]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Genres")
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -293,18 +305,49 @@ struct MovieDetailView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 8) {
+            ], spacing: 10) {
                 ForEach(genres) { genre in
                     Text(genre.name)
                         .font(.caption)
+                        .fontWeight(.medium)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(.ultraThinMaterial)
+                        .background(.blue.opacity(0.2))
+                        .foregroundColor(.blue)
                         .clipShape(Capsule())
                 }
             }
         }
-        .padding()
+        .padding(20)
+        .background(.thickMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private func countriesView(countries: [MovieCountry]) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Countries")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 10) {
+                ForEach(countries) { country in
+                    Text(country.tag)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.green.opacity(0.2))
+                        .foregroundColor(.green)
+                        .clipShape(Capsule())
+                }
+            }
+        }
+        .padding(20)
         .background(.thickMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -348,14 +391,4 @@ struct MovieDetailView: View {
             }
         }
     }
-}
-
-
-
-#Preview {
-    MovieDetailView(
-        movieId: "tt0111161", // The Shawshank Redemption
-        imdbService: IMDbService(),
-        plexMovieMetadata: nil
-    )
 }

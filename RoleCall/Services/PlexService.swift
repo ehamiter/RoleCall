@@ -114,7 +114,7 @@ class PlexService: ObservableObject {
         request.setValue("RoleCall", forHTTPHeaderField: "X-Plex-Product")
         request.setValue("1.0", forHTTPHeaderField: "X-Plex-Version")
         request.setValue("iOS", forHTTPHeaderField: "X-Plex-Platform")
-        request.setValue("18.5", forHTTPHeaderField: "X-Plex-Platform-Version")
+        request.setValue("15.0", forHTTPHeaderField: "X-Plex-Platform-Version")
         request.setValue("mobile", forHTTPHeaderField: "X-Plex-Device")
 
         // Create the correct JSON payload format for Plex
@@ -986,6 +986,8 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
     private var roles: [MovieRole] = []
     private var ratings: [MovieRating] = []
     private var guids: [MovieGuid] = []
+    private var genres: [MovieGenre] = []
+    private var countries: [MovieCountry] = []
     private var movies: [MovieMetadata] = []
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
@@ -1037,6 +1039,8 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
             )
             roles = []
             ratings = []
+            genres = []
+            countries = []
 
         case "Role":
             let id = attributeDict["id"] ?? ""
@@ -1072,6 +1076,22 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
             let guid = MovieGuid(id: id)
             guids.append(guid)
             print("🔍 DEBUG: Parsed Guid: \(id)")
+
+        case "Genre":
+            let id = attributeDict["id"] ?? ""
+            let tag = attributeDict["tag"] ?? ""
+            
+            let genre = MovieGenre(id: id, tag: tag)
+            genres.append(genre)
+            print("🎭 DEBUG: Parsed Genre: id=\(id), tag=\(tag)")
+
+        case "Country":
+            let id = attributeDict["id"] ?? ""
+            let tag = attributeDict["tag"] ?? ""
+            
+            let country = MovieCountry(id: id, tag: tag)
+            countries.append(country)
+            print("🌍 DEBUG: Parsed Country: id=\(id), tag=\(tag)")
 
         case "UltraBlurColors":
             let topLeft = attributeDict["topLeft"]
@@ -1150,18 +1170,21 @@ class MovieMetadataXMLParserDelegate: NSObject, XMLParserDelegate {
                     roles: roles,
                     directors: movie.directors,
                     writers: movie.writers,
-                    genres: movie.genres,
-                    countries: movie.countries,
+                    genres: genres.isEmpty ? nil : genres,
+                    countries: countries.isEmpty ? nil : countries,
                     ratings: ratings,
                     guids: guids.isEmpty ? nil : guids,
                     ultraBlurColors: movie.ultraBlurColors
                 )
                 movies.append(movie)
+                print("🎬 DEBUG: Movie completed with \(genres.count) genres and \(countries.count) countries")
             }
             currentMovie = nil
             roles = []
             ratings = []
             guids = []
+            genres = []
+            countries = []
 
         case "MediaContainer":
             let container = PlexMovieMetadataResponse.MovieMetadataContainer(

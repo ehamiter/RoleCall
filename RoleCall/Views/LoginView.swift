@@ -14,8 +14,7 @@ struct LoginView: View {
     @State private var showingPassword = false
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
+        VStack(spacing: 24) {
                 // Header
                 VStack(spacing: 16) {
                     Image(systemName: "tv.and.hifispeaker.fill")
@@ -136,7 +135,6 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 20)
-            }
         }
     }
 

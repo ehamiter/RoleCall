@@ -58,7 +58,7 @@ struct MainView: View {
                         content
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 2)
             }
         }
         .onAppear {
@@ -96,14 +96,14 @@ struct MainView: View {
     private var content: some View {
         let videoSessions = plexService.activeVideoSessions
         if !videoSessions.isEmpty {
-            VStack(spacing: 20) {
+            VStack(spacing: 8) {
                 // Movie details
                 if let movie = movieMetadata {
                     movieDetailsView(movie: movie)
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 2)
         } else {
             VStack(spacing: 16) {
                 Image(systemName: "tv.slash")
@@ -124,13 +124,19 @@ struct MainView: View {
     }
 
     private func movieDetailsView(movie: MovieMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 40) {
             // Movie title - redesigned to be more compact and elegant
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isMovieInfoExpanded.toggle()
-                }
-            }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.regularMaterial)
+                    .onTapGesture {
+                        print("🎬 MainView: Movie title tapped")
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isMovieInfoExpanded.toggle()
+                        }
+                        print("🎬 MainView: isMovieInfoExpanded is now: \(isMovieInfoExpanded)")
+                    }
+                
                 HStack {
                     Text(movie.title ?? "Unknown Title")
                         .font(.title2)
@@ -147,13 +153,10 @@ struct MainView: View {
                         .animation(.easeInOut(duration: 0.3), value: isMovieInfoExpanded)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.regularMaterial)
-                )
+                .padding(.vertical, 16)
+                .allowsHitTesting(false)
             }
-            .buttonStyle(PlainButtonStyle())
+            .padding(.bottom, 20)
 
             // Collapsible movie info section
             if isMovieInfoExpanded {
@@ -349,17 +352,15 @@ struct MainView: View {
             Text("Genres")
                 .font(.headline)
 
-            FlowLayout(spacing: 8) {
-                ForEach(genres) { genre in
-                    Text(genre.tag)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.2))
-                        .foregroundColor(.blue)
-                        .cornerRadius(16)
-                }
+            SimpleFlowLayout(genres, spacing: 8) { genre in
+                Text(genre.tag)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.2))
+                    .foregroundColor(.blue)
+                    .cornerRadius(16)
             }
         }
     }
@@ -369,17 +370,15 @@ struct MainView: View {
             Text("Countries")
                 .font(.headline)
 
-            FlowLayout(spacing: 8) {
-                ForEach(countries) { country in
-                    Text(country.tag)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.green.opacity(0.2))
-                        .foregroundColor(.green)
-                        .cornerRadius(16)
-                }
+            SimpleFlowLayout(countries, spacing: 8) { country in
+                Text(country.tag)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.2))
+                    .foregroundColor(.green)
+                    .cornerRadius(16)
             }
         }
     }
@@ -537,7 +536,7 @@ struct MainView: View {
                                         )
                                 }
                             }
-                            .frame(height: 120)
+                            .frame(height: 250)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -769,54 +768,57 @@ extension Color {
     }
 }
 
-// Flow layout for genre pills
-struct FlowLayout: Layout {
+
+// Simplified flow layout for pill-shaped items (iOS 15 compatible)
+struct SimpleFlowLayout<Data: RandomAccessCollection, Content: View>: View where Data.Element: Identifiable {
+    let items: Data
     let spacing: CGFloat
-
-    init(spacing: CGFloat = 8) {
+    let content: (Data.Element) -> Content
+    
+    init(_ items: Data, spacing: CGFloat = 8, @ViewBuilder content: @escaping (Data.Element) -> Content) {
+        self.items = items
         self.spacing = spacing
+        self.content = content
     }
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
-        for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.frames[index].minX,
-                                    y: bounds.minY + result.frames[index].minY),
-                         proposal: ProposedViewSize(result.frames[index].size))
-        }
-    }
-
-    struct FlowResult {
-        var frames: [CGRect] = []
-        var size: CGSize = .zero
-
-        init(in maxWidth: CGFloat, subviews: Layout.Subviews, spacing: CGFloat) {
-            var currentPosition: CGPoint = .zero
-            var rowHeight: CGFloat = 0
-
-            for subview in subviews {
-                let subviewSize = subview.sizeThatFits(.unspecified)
-
-                if currentPosition.x + subviewSize.width > maxWidth && currentPosition.x > 0 {
-                    // Move to next row
-                    currentPosition.x = 0
-                    currentPosition.y += rowHeight + spacing
-                    rowHeight = 0
+    
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: spacing) {
+            ForEach(Array(createRows()), id: \.0) { rowIndex, rowItems in
+                HStack(spacing: spacing) {
+                    ForEach(rowItems) { item in
+                        content(item)
+                    }
+                    Spacer()
                 }
-
-                frames.append(CGRect(origin: currentPosition, size: subviewSize))
-
-                currentPosition.x += subviewSize.width + spacing
-                rowHeight = max(rowHeight, subviewSize.height)
             }
-
-            size = CGSize(width: maxWidth, height: currentPosition.y + rowHeight)
         }
+    }
+    
+    private func createRows() -> [(Int, [Data.Element])] {
+        var rows: [(Int, [Data.Element])] = []
+        var currentRow: [Data.Element] = []
+        var rowIndex = 0
+        
+        // For simplicity, we'll put 3-4 items per row
+        // This works well for genre/country pills
+        let itemsPerRow = 3
+        
+        for item in items {
+            currentRow.append(item)
+            
+            if currentRow.count == itemsPerRow {
+                rows.append((rowIndex, currentRow))
+                currentRow = []
+                rowIndex += 1
+            }
+        }
+        
+        // Add remaining items
+        if !currentRow.isEmpty {
+            rows.append((rowIndex, currentRow))
+        }
+        
+        return rows
     }
 }
 
