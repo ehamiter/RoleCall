@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 @MainActor
 class PlexService: ObservableObject {
@@ -24,9 +25,13 @@ class PlexService: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "PlexSettings"
     private let demoService = DemoService.shared
+    private let clientIdentifier = UUID().uuidString
 
     // Track current sessions task to prevent conflicts
     private var currentSessionsTask: Task<Void, Never>?
+    
+    // OAuth polling task
+    private var pollingTask: Task<Void, Never>?
 
     // Custom URLSession with better network configuration
     private lazy var urlSession: URLSession = {
@@ -91,17 +96,39 @@ class PlexService: ObservableObject {
         saveSettings()
     }
 
+
     // MARK: - Authentication
-    func login(username: String, password: String) async {
+    
+    func startOAuthLogin() async {
         isLoading = true
         errorMessage = nil
-
-        if demoService.isDemoUser(email: username) {
-            print("🎬 Demo mode activated for user: \(username)")
+        
+        do {
+            let pinResponse = try await generatePIN()
+            let authURL = constructAuthURL(pin: pinResponse.code)
+            
+            if let url = URL(string: authURL) {
+                await UIApplication.shared.open(url)
+            }
+            
+            try await pollForAuthentication(pinID: pinResponse.id)
+        } catch {
+            errorMessage = error.localizedDescription
+            print("❌ OAuth login failed: \(error.localizedDescription)")
+            isLoading = false
+        }
+    }
+    
+    func loginDemo(email: String) async {
+        isLoading = true
+        errorMessage = nil
+        
+        if demoService.isDemoUser(email: email) {
+            print("🎬 Demo mode activated for user: \(email)")
             isDemoMode = true
             settings.plexToken = "demo-token-12345"
-            settings.username = username
-            settings.serverIP = "demo.local"
+            settings.username = email
+            settings.serverIP = "192.168.1.100"
             settings.tokenExpirationDate = nil
             saveSettings()
             isLoggedIn = true
@@ -111,98 +138,127 @@ class PlexService: ObservableObject {
             movieMetadata = demoService.createMockMovieMetadata()
             activities = demoService.createMockActivitiesResponse()
             
-            print("✅ Demo mode login successful for user: \(username)")
-            isLoading = false
-            return
+            print("✅ Demo mode login successful for user: \(email)")
+        } else {
+            errorMessage = "Invalid demo account credentials"
         }
-
-        do {
-            let token = try await authenticateWithPlex(username: username, password: password)
-            settings.plexToken = token
-            settings.username = username
-            settings.tokenExpirationDate = nil
-            saveSettings()
-            isLoggedIn = true
-            isDemoMode = false
-            print("✅ Login successful and credentials saved for user: \(username)")
-        } catch {
-            errorMessage = error.localizedDescription
-            print("❌ Login failed: \(error.localizedDescription)")
-        }
-
+        
         isLoading = false
     }
-
-    private func authenticateWithPlex(username: String, password: String) async throws -> String {
-        guard let url = URL(string: "https://plex.tv/users/sign_in.json") else {
+    
+    private func generatePIN() async throws -> PlexPinResponse {
+        guard let url = URL(string: "https://plex.tv/api/v2/pins") else {
             throw PlexError.invalidURL
         }
-
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("RoleCall iOS App", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.setValue("RoleCall", forHTTPHeaderField: "X-Plex-Product")
-        request.setValue("1.0", forHTTPHeaderField: "X-Plex-Version")
-        request.setValue("iOS", forHTTPHeaderField: "X-Plex-Platform")
-        request.setValue("15.0", forHTTPHeaderField: "X-Plex-Platform-Version")
-        request.setValue("mobile", forHTTPHeaderField: "X-Plex-Device")
-
-        // Create the correct JSON payload format for Plex
-        let loginPayload = [
-            "user": [
-                "login": username,
-                "password": password
-            ]
-        ]
-
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: loginPayload, options: [])
-            request.httpBody = jsonData
-
-            print("🔐 Attempting Plex authentication...")
-            print("📍 URL: \(url)")
-            print("📦 Payload: \(String(data: jsonData, encoding: .utf8) ?? "nil")")
-
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response type")
-                throw PlexError.invalidResponse
-            }
-
-            print("📊 Response status: \(httpResponse.statusCode)")
-            print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-
-            if httpResponse.statusCode == 401 {
-                throw PlexError.invalidCredentials
-            }
-
-            if httpResponse.statusCode == 422 {
-                // Handle validation errors
-                if let errorResponse = try? JSONDecoder().decode(PlexErrorResponse.self, from: data) {
-                    let errorMessage = errorResponse.errors.map { $0.message }.joined(separator: ", ")
-                    throw PlexError.validationError(errorMessage)
-                }
-                throw PlexError.invalidCredentials
-            }
-
-            guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
-                throw PlexError.serverError(httpResponse.statusCode)
-            }
-
-            let authResponse = try JSONDecoder().decode(PlexAuthResponse.self, from: data)
-            print("✅ Authentication successful, token received")
-            return authResponse.user.authToken
-
-        } catch let decodingError as DecodingError {
-            print("❌ JSON Decoding error: \(decodingError)")
+        request.setValue(clientIdentifier, forHTTPHeaderField: "X-Plex-Client-Identifier")
+        
+        let body = "strong=true"
+        request.httpBody = body.data(using: .utf8)
+        
+        print("🔐 Generating PIN...")
+        let (data, response) = try await urlSession.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw PlexError.invalidResponse
-        } catch {
-            print("❌ Network error: \(error)")
-            throw error
         }
+        
+        print("📊 PIN Response status: \(httpResponse.statusCode)")
+        
+        guard httpResponse.statusCode == 201 else {
+            throw PlexError.serverError(httpResponse.statusCode)
+        }
+        
+        let pinResponse = try JSONDecoder().decode(PlexPinResponse.self, from: data)
+        print("✅ PIN generated: \(pinResponse.id)")
+        return pinResponse
+    }
+    
+    private func constructAuthURL(pin: String) -> String {
+        let baseURL = "https://app.plex.tv/auth#?"
+        let params = [
+            "clientID": clientIdentifier,
+            "code": pin,
+            "context[device][product]": "RoleCall"
+        ]
+        
+        let queryString = params.map { key, value in
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            return "\(encodedKey)=\(encodedValue)"
+        }.joined(separator: "&")
+        
+        return baseURL + queryString
+    }
+    
+    private func pollForAuthentication(pinID: Int) async throws {
+        let maxAttempts = 300
+        var attempts = 0
+        
+        pollingTask = Task {
+            while attempts < maxAttempts && !Task.isCancelled {
+                attempts += 1
+                
+                do {
+                    let pinResponse = try await checkPINStatus(pinID: pinID)
+                    
+                    if pinResponse.isAuthenticated, let token = pinResponse.authToken {
+                        print("✅ Authentication successful!")
+                        await MainActor.run {
+                            settings.plexToken = token
+                            settings.username = ""
+                            settings.tokenExpirationDate = nil
+                            saveSettings()
+                            isLoggedIn = true
+                            isDemoMode = false
+                            isLoading = false
+                        }
+                        return
+                    }
+                } catch {
+                    print("⚠️ Error checking PIN status: \(error.localizedDescription)")
+                }
+                
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+            
+            if attempts >= maxAttempts {
+                await MainActor.run {
+                    errorMessage = "Authentication timeout. Please try again."
+                    isLoading = false
+                }
+            }
+        }
+        
+        await pollingTask?.value
+    }
+    
+    private func checkPINStatus(pinID: Int) async throws -> PlexPinResponse {
+        guard let url = URL(string: "https://plex.tv/api/v2/pins/\(pinID)") else {
+            throw PlexError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(clientIdentifier, forHTTPHeaderField: "X-Plex-Client-Identifier")
+        
+        let (data, response) = try await urlSession.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw PlexError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw PlexError.serverError(httpResponse.statusCode)
+        }
+        
+        let pinResponse = try JSONDecoder().decode(PlexPinResponse.self, from: data)
+        return pinResponse
     }
 
     func checkTokenValidity() {

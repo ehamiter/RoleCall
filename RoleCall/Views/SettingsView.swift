@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var serverIP: String = ""
     @State private var showingAlert = false
     @Environment(\.dismiss) private var dismiss
+    var onSettingsSaved: (() -> Void)?
 
     var body: some View {
         NavigationView {
@@ -100,7 +101,12 @@ struct SettingsView: View {
 
     private func saveSettings() {
         plexService.updateServerIP(serverIP)
-        showingAlert = true
+        if let onSettingsSaved = onSettingsSaved {
+            onSettingsSaved()
+            dismiss()
+        } else {
+            showingAlert = true
+        }
     }
 
     private func isValidIPAddress(_ ip: String) -> Bool {

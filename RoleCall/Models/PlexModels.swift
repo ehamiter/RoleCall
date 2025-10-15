@@ -43,6 +43,22 @@ struct PlexAuthResponse: Codable {
     }
 }
 
+// MARK: - Plex OAuth PIN Response
+struct PlexPinResponse: Codable {
+    let id: Int
+    let code: String
+    let authToken: String?
+    let expiresAt: String?
+    let createdAt: String?
+    let updatedAt: String?
+    let trusted: Bool?
+    let clientIdentifier: String?
+    
+    var isAuthenticated: Bool {
+        return authToken != nil && !(authToken ?? "").isEmpty
+    }
+}
+
 // MARK: - Plex Server Capabilities Response
 struct PlexCapabilitiesResponse: Codable {
     let mediaContainer: MediaContainer
