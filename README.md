@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="RoleCall/Assets.xcassets/AppIcon.appiconset/1024.png" alt="RoleCall" width="200" style="border-radius: 22%; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2); margin: 20px 0;"/>
+  <img src="rolecall.png" alt="RoleCall" width="200"/>
 </div>
 
 # RoleCall
