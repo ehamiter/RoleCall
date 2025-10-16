@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="RoleCall/Assets.xcassets/AppIcon.appiconset/1024.png" alt="RoleCall" width="200"/>
+</div>
+
 # RoleCall
 
 An iOS app that connects to your Plex Media Server to browse active sessions and view detailed cast information using IMDb.
