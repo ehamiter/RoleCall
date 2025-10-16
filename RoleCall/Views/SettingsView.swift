@@ -23,7 +23,7 @@ struct SettingsView: View {
                             .font(.headline)
                         TextField("Enter server IP address", text: $serverIP)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.decimalPad)
+                            .keyboardType(.numbersAndPunctuation)
                             .autocorrectionDisabled()
                         Text("Enter the IP address of your Plex Media Server (port 32400 will be added automatically)")
                             .font(.caption)
