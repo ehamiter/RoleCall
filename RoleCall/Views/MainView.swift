@@ -259,6 +259,28 @@ struct MainView: View {
                                             print("🎭 MainView: No ratings to display - ratings: \(movie.ratings?.count ?? 0)")
                                         }
                                 }
+
+                                // IMDb link to view more details about this title
+                                if let imdbID = movie.imdbID, let imdbURL = URL(string: "https://www.imdb.com/title/\(imdbID)/") {
+                                    Link(destination: imdbURL) {
+                                        HStack(spacing: 4) {
+                                            Text("IMDb")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.yellow)
+                                            Text("View on IMDb")
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                            Image(systemName: "arrow.up.right.square")
+                                                .font(.caption2)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.systemGray6).opacity(0.6))
+                                        .cornerRadius(6)
+                                    }
+                                    .padding(.top, 2)
+                                }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }

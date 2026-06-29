@@ -106,6 +106,43 @@ struct SessionsView: View {
     }
 }
 
+// Lightweight session picker presented from the main screen for quickly
+// swapping between multiple active video streams.
+struct SessionSwapView: View {
+    @ObservedObject var plexService: PlexService
+    @Binding var selectedSessionIndex: Int
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section("Now Playing") {
+                    ForEach(Array(plexService.activeVideoSessions.enumerated()), id: \.element.id) { index, session in
+                        VideoSessionView(
+                            session: session,
+                            isSelected: index == selectedSessionIndex,
+                            onTap: {
+                                selectedSessionIndex = index
+                                dismiss()
+                            }
+                        )
+                    }
+                }
+            }
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Swap Session")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct VideoSessionView: View {
     let session: VideoSession
     let isSelected: Bool
