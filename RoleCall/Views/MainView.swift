@@ -217,11 +217,15 @@ struct MainView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
 
-                            // Basic info
-                            VStack(alignment: .leading, spacing: 6) {
+                            // ✦ Info column beside the poster: metadata line + rating chips
+                            //   that wrap to fill the space next to the poster.
+                            VStack(alignment: .leading, spacing: 10) {
+                                // ✦ Consolidated metadata line: "year · runtime" + certification pill
                                 HStack(spacing: 8) {
-                                    if let year = movie.year {
-                                        Text(String(year))
+                                    let meta = [movie.year.map { String($0) }, movie.duration.map { formatTime($0) }]
+                                        .compactMap { $0 }
+                                    if !meta.isEmpty {
+                                        Text(meta.joined(separator: "  ·  ")) // ✦ native TV-app style separator
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     }
@@ -229,57 +233,20 @@ struct MainView: View {
                                     if let contentRating = movie.contentRating {
                                         Text(contentRating)
                                             .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.secondary)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.gray.opacity(0.2))
-                                            .cornerRadius(3)
+                                            .overlay( // ✦ outlined pill reads clearly as a certification badge
+                                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                                    .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+                                            )
                                     }
                                 }
 
-                                if let duration = movie.duration {
-                                    Text(formatTime(duration))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                // Ratings section
+                                // ✦ Rating chips, beside the poster; wrap to a 2nd line if the column is tight
                                 if let ratings = movie.ratings, !ratings.isEmpty {
-                                    ratingsView(ratings: ratings)
-                                        .onAppear {
-                                            print("🎭 MainView: Displaying \(ratings.count) ratings")
-                                            for (index, rating) in ratings.enumerated() {
-                                                print("   Rating \(index): type=\(rating.type ?? "nil"), value=\(rating.value ?? -1), image=\(rating.image ?? "nil")")
-                                            }
-                                        }
-                                } else {
-                                    Text("No ratings available")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .onAppear {
-                                            print("🎭 MainView: No ratings to display - ratings: \(movie.ratings?.count ?? 0)")
-                                        }
-                                }
-
-                                // IMDb link to view more details about this title
-                                if let imdbID = movie.imdbID, let imdbURL = URL(string: "https://www.imdb.com/title/\(imdbID)/") {
-                                    Link(destination: imdbURL) {
-                                        HStack(spacing: 4) {
-                                            Text("IMDb")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.yellow)
-                                            Text("View on IMDb")
-                                                .font(.caption)
-                                                .fontWeight(.medium)
-                                            Image(systemName: "arrow.up.right.square")
-                                                .font(.caption2)
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color(.systemGray6).opacity(0.6))
-                                        .cornerRadius(6)
-                                    }
-                                    .padding(.top, 2)
+                                    ratingsView(ratings: ratings, imdbID: movie.imdbID)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,76 +297,91 @@ struct MainView: View {
         }
     }
 
-    private func ratingsView(ratings: [MovieRating]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ratings")
-                .font(.subheadline)
-                .fontWeight(.medium)
+    // ✦ Shared capsule chip — consistent styling & a comfortable, legible 36pt height for every rating source.
+    @ViewBuilder
+    private func ratingChip<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 5) {
+            content()
+        }
+        .font(.subheadline.weight(.semibold)) // ✦ weight folded into Font (iOS 15-safe; the .fontWeight view modifier is iOS 16+)
+        .foregroundColor(.primary)
+        .padding(.horizontal, 12)
+        .frame(minHeight: 36) // ✦ uniform, easy-to-read chip height
+        .background(Color(.tertiarySystemFill), in: Capsule()) // ✦ single consistent surface, adapts to dark mode
+    }
 
-            VStack(alignment: .leading, spacing: 6) {
-                // First row: Rotten Tomatoes (critic and audience)
-                HStack(spacing: 8) {
-                    ForEach(ratings.filter { $0.image?.contains("rottentomatoes") == true }, id: \.computedId) { rating in
-                        HStack(spacing: 4) {
-                            if rating.type == "critic" {
-                                // Tomato with color based on Fresh (≥6.0) vs Rotten (<6.0)
-                                let isFresh = (rating.value ?? 0) >= 6.0
-                                Text("🍅")
-                                    .font(.caption)
-                                    .foregroundColor(isFresh ? .red : .green)
-                            } else {
-                                // Audience rating - keep person icon
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                            }
+    // ✦ Rotten Tomatoes chip — tomato for critics, audience icon otherwise.
+    @ViewBuilder
+    private func rottenTomatoesChip(rating: MovieRating, value: Double) -> some View {
+        ratingChip {
+            if rating.type == "critic" {
+                Text((value >= 6.0) ? "🍅" : "🟢") // ✦ fresh vs. rotten at a glance
+            } else {
+                Image(systemName: "person.2.fill")
+                    .foregroundColor(.orange)
+            }
+            Text(formatRating(value))
+        }
+    }
 
-                            if let value = rating.value {
-                                Text(formatRating(value))
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.systemGray6).opacity(0.6))
-                        .cornerRadius(6)
-                    }
-                    Spacer()
-                }
+    // ✦ IMDb chip — recognizable gold badge with dark text (high contrast) and a full-chip tap target.
+    @ViewBuilder
+    private func imdbChip(value: Double?, url: URL?) -> some View {
+        let chip = ratingChip {
+            Text("IMDb")
+                .font(.caption)
+                .fontWeight(.heavy)
+                .foregroundColor(.black) // ✦ legible dark-on-gold like the real IMDb badge
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(
+                    Color(red: 0.96, green: 0.78, blue: 0.0),
+                    in: RoundedRectangle(cornerRadius: 3, style: .continuous)
+                )
 
-                // Second row: IMDb ratings
-                HStack(spacing: 8) {
-                    ForEach(ratings.filter { $0.image?.contains("imdb") == true }, id: \.computedId) { rating in
-                        HStack(spacing: 4) {
-                            if let image = rating.image {
-                                if image.contains("imdb") {
-                                    Text("IMDb")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.yellow)
-                                }
-                            }
+            if let value {
+                Text("\(formatRating(value)) / 10") // ✦ spell out the scale for clarity
+            } else {
+                Text("View")
+            }
 
-                            if let value = rating.value {
-                                Text(formatRating(value))
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.systemGray6).opacity(0.6))
-                        .cornerRadius(6)
-                    }
-                    Spacer()
-                }
+            if url != nil {
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
-        .onAppear {
-            print("DEBUG - Movie ratings count: \(ratings.count)")
-            for (index, rating) in ratings.enumerated() {
-                print("DEBUG - Rating \(index): image=\(rating.image ?? "nil"), value=\(rating.value?.description ?? "nil"), type=\(rating.type ?? "nil"), id=\(rating.id ?? "nil")")
+
+        if let url {
+            Link(destination: url) { chip }
+                .contentShape(Capsule()) // ✦ entire 36pt capsule is tappable — far better target than the old caption2 link
+        } else {
+            chip
+        }
+    }
+
+    // ✦ Unified rating chips (RT + IMDb) in a width-aware flow so they wrap to a
+    //   second line when sitting in the narrower column beside the poster.
+    private func ratingsView(ratings: [MovieRating], imdbID: String?) -> some View {
+        let imdbURL = imdbID.flatMap { URL(string: "https://www.imdb.com/title/\($0)/") }
+        let rtRatings = ratings.filter { $0.image?.contains("rottentomatoes") == true }
+        let imdbRatings = ratings.filter { $0.image?.contains("imdb") == true }
+
+        // Build the ordered chip list once: RT chips, then IMDb (or a link-only fallback).
+        var chips: [RatingChipModel] = rtRatings.compactMap { rating in
+            rating.value.map { .rottenTomatoes(rating: rating, value: $0) }
+        }
+        chips += imdbRatings.map { .imdb(id: $0.computedId, value: $0.value, url: imdbURL) }
+        if imdbRatings.isEmpty, let url = imdbURL {
+            chips.append(.imdb(id: "imdb-link", value: nil, url: url))
+        }
+
+        return WrappingFlowLayout(chips, spacing: 8) { chip in
+            switch chip {
+            case .rottenTomatoes(let rating, let value):
+                rottenTomatoesChip(rating: rating, value: value)
+            case .imdb(_, let value, let url):
+                imdbChip(value: value, url: url)
             }
         }
     }
@@ -561,30 +543,6 @@ struct MainView: View {
         #endif
     }
     
-    // Device-specific card image dimensions
-    private var cardImageWidth: CGFloat {
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            // iPad: Fixed width for consistent grid
-            return 160
-        } else {
-            // iPhone: Use flexible width based on screen size
-            let screenWidth = UIScreen.main.bounds.width
-            let padding: CGFloat = 16 * 3 // left + right + middle spacing
-            let cardPadding: CGFloat = 12 * 2 * 2 // 2 cards with padding on each side
-            return (screenWidth - padding - cardPadding) / 2
-        }
-        #else
-        // macOS fallback
-        return 160
-        #endif
-    }
-    
-    private var cardImageHeight: CGFloat {
-        // Maintain 2:3 aspect ratio (portrait) for all actor photos
-        return cardImageWidth * 1.5
-    }
-
     private func castView(cast: [MovieRole]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Device-specific grid layouts
@@ -610,42 +568,31 @@ struct MainView: View {
                         print("   showingActorDetail set to: \(showingActorDetail)")
                     }) {
                         VStack(alignment: .leading, spacing: 8) {
-                            AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: cardImageWidth, height: cardImageHeight)
-                                        .clipped()
-                                case .failure(_):
-                                    Rectangle()
-                                        .foregroundColor(.gray.opacity(0.3))
-                                        .frame(width: cardImageWidth, height: cardImageHeight)
-                                        .overlay(
-                                            Image(systemName: "person.fill")
-                                                .foregroundColor(.gray.opacity(0.6))
-                                                .font(.system(size: 32))
-                                        )
-                                case .empty:
-                                    Rectangle()
-                                        .foregroundColor(.gray.opacity(0.3))
-                                        .frame(width: cardImageWidth, height: cardImageHeight)
-                                        .overlay(
+                            // ✦ Fixed 2:3 portrait box that fills the grid column, so every
+                            //   photo is identical in size regardless of source resolution.
+                            //   Color.clear + aspectRatio defines the box; the image fills &
+                            //   clips into it (replaces fragile UIScreen pixel-width math).
+                            Color.clear
+                                .aspectRatio(2.0 / 3.0, contentMode: .fit) // ✦ uniform portrait frame
+                                .overlay {
+                                    AsyncImage(url: thumbnailURL(for: role.thumb)) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFill() // ✦ fill the box edge-to-edge, crop overflow
+                                        case .empty:
                                             ProgressView()
-                                        )
-                                @unknown default:
-                                    Rectangle()
-                                        .foregroundColor(.gray.opacity(0.3))
-                                        .frame(width: cardImageWidth, height: cardImageHeight)
-                                        .overlay(
+                                        default:
                                             Image(systemName: "person.fill")
-                                                .foregroundColor(.gray.opacity(0.6))
                                                 .font(.system(size: 32))
-                                        )
+                                                .foregroundColor(.gray.opacity(0.6))
+                                        }
+                                    }
                                 }
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .frame(maxWidth: .infinity) // ✦ span full card width on any device
+                                .background(Color.gray.opacity(0.15)) // ✦ placeholder backing
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) // ✦ continuous curve
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(role.tag)
@@ -655,14 +602,13 @@ struct MainView: View {
                                     .lineLimit(2)
                                     .multilineTextAlignment(.leading)
 
-                                if let character = role.role {
-                                    Text(character)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
-                                }
+                                Text(role.role ?? " ") // ✦ always render (even when nil) to reserve space
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
                             }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading) // ✦ reserve consistent text height → uniform cards
                         }
                         .padding(12)
                         .background(
@@ -928,6 +874,84 @@ struct SimpleFlowLayout<Data: RandomAccessCollection, Content: View>: View where
         }
         
         return rows
+    }
+}
+
+// ✦ One rating chip's data, so a heterogeneous chip list (RT + IMDb) can flow as Identifiable items.
+private enum RatingChipModel: Identifiable {
+    case rottenTomatoes(rating: MovieRating, value: Double)
+    case imdb(id: String, value: Double?, url: URL?)
+
+    var id: String {
+        switch self {
+        case .rottenTomatoes(let rating, _): return "rt-\(rating.computedId)"
+        case .imdb(let id, _, _): return "imdb-\(id)"
+        }
+    }
+}
+
+// ✦ Width-aware wrapping layout — lays items left-to-right and wraps to the next line
+//   based on the available width (unlike SimpleFlowLayout's fixed items-per-row chunking).
+//   iOS 15-safe (alignmentGuide technique; the Layout protocol is iOS 16+).
+struct WrappingFlowLayout<Data: RandomAccessCollection, Content: View>: View where Data.Element: Identifiable {
+    let items: Data
+    let spacing: CGFloat
+    let content: (Data.Element) -> Content
+
+    @State private var totalHeight: CGFloat = .zero
+
+    init(_ items: Data, spacing: CGFloat = 8, @ViewBuilder content: @escaping (Data.Element) -> Content) {
+        self.items = items
+        self.spacing = spacing
+        self.content = content
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            generate(in: geo)
+        }
+        .frame(height: totalHeight)
+    }
+
+    private func generate(in g: GeometryProxy) -> some View {
+        var width = CGFloat.zero
+        var height = CGFloat.zero
+        return ZStack(alignment: .topLeading) {
+            ForEach(items) { item in
+                content(item)
+                    .alignmentGuide(.leading) { d in
+                        if abs(width - d.width) > g.size.width { // ✦ doesn't fit — wrap to next line
+                            width = 0
+                            height -= d.height + spacing
+                        }
+                        let result = width
+                        if item.id == items.last?.id {
+                            width = 0 // last item: reset for the next layout pass
+                        } else {
+                            width -= d.width + spacing
+                        }
+                        return result
+                    }
+                    .alignmentGuide(.top) { _ in
+                        let result = height
+                        if item.id == items.last?.id {
+                            height = 0
+                        }
+                        return result
+                    }
+            }
+        }
+        .background(heightReader($totalHeight))
+    }
+
+    // Reports the laid-out content height back up so the GeometryReader frame can size to it.
+    private func heightReader(_ binding: Binding<CGFloat>) -> some View {
+        GeometryReader { geo -> Color in
+            DispatchQueue.main.async {
+                binding.wrappedValue = geo.size.height
+            }
+            return Color.clear
+        }
     }
 }
 
