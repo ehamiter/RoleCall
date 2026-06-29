@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var plexService = PlexService()
     @State private var showingSettings = false
     @State private var isInitialSetup = false
+    @State private var showingSessionSwap = false
 
     var body: some View {
         NavigationView {
@@ -27,6 +28,17 @@ struct ContentView: View {
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // Quick session swap, only relevant when multiple streams are active
+                    if plexService.isLoggedIn && plexService.activeVideoSessions.count > 1 {
+                        Button(action: {
+                            showingSessionSwap = true
+                        }) {
+                            Image(systemName: "arrow.left.arrow.right")
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         isInitialSetup = false
@@ -38,6 +50,9 @@ struct ContentView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .sheet(isPresented: $showingSessionSwap) {
+            SessionSwapView(plexService: plexService, selectedSessionIndex: $plexService.selectedSessionIndex)
+        }
         .sheet(isPresented: $showingSettings) {
             if isInitialSetup {
                 SettingsView(plexService: plexService) {
