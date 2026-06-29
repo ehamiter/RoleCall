@@ -1,3 +1,19 @@
+*.d
+*.log
+*.o
+*.swp
+*.tmp
+*~
+.DS_Store
+._*
+.build/
+.env
+.env.*.local
+.env.local
+build/
+dist/
+logs/
+
 # Note: Config files no longer needed after TMDB → IMDb refactor
 # Config.plist
 
